@@ -1,0 +1,78 @@
+version: '3.9'
+
+services:
+
+  nginx:
+    build: ./nginx
+    ports: ['80:80', '443:443']
+    depends_on: [frontend, backend]
+    networks: [uta-net]
+
+  frontend:
+    build: ./frontend
+    environment:
+      - VITE_API_URL=http://localhost/api
+    networks: [uta-net]
+
+  backend:
+    build: ./backend
+    environment:
+      - DATABASE_URL=postgresql://uta:secret@postgres:5432/uta_db
+      - MONGODB_URI=mongodb://mongo:27017/uta_logs
+      - REDIS_URL=redis://redis:6379
+      - ANALYTICS_URL=http://analytics:8000
+      - JWT_SECRET=${JWT_SECRET}
+      - NODE_ENV=production
+    depends_on:
+      postgres: { condition: service_healthy }
+      mongo: { condition: service_started }
+      redis: { condition: service_started }
+    networks: [uta-net]
+
+  analytics:
+    build: ./analytics
+    environment:
+      - DATABASE_URL=postgresql://uta:secret@postgres:5432/uta_db
+      - REDIS_URL=redis://redis:6379
+    depends_on: [postgres, redis]
+    networks: [uta-net]
+
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: uta
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: uta_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/src/db/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U uta']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [uta-net]
+
+  mongo:
+    image: mongo:7.0
+    environment:
+      MONGO_INITDB_DATABASE: uta_logs
+    volumes:
+      - mongo_data:/data/db
+    networks: [uta-net]
+
+  redis:
+    image: redis:7.2-alpine
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks: [uta-net]
+
+volumes:
+  postgres_data:
+  mongo_data:
+  redis_data:
+
+networks:
+  uta-net:
+    driver: bridge

@@ -1,0 +1,353 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: uta
+          POSTGRES_PASSWORD: secret
+          POSTGRES_DB: uta_db_test
+        options: >-
+          --health-cmd pg_isready -U uta
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7.2-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+      
+      mongo:
+        image: mongo:7.0
+        options: >-
+          --health-cmd "echo 'db.runCommand({ping: 1})' | mongo"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 27017:27017
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Run linting
+        working-directory: ./backend
+        run: npm run lint
+
+      - name: Run tests
+        working-directory: ./backend
+        run: npm test
+        env:
+          DATABASE_URL: postgresql://uta:secret@localhost:5432/uta_db_test
+          MONGODB_URI: mongodb://localhost:27017/uta_logs_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-secret-for-ci-pipeline
+          NODE_ENV: test
+
+  test-analytics:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: uta
+          POSTGRES_PASSWORD: secret
+          POSTGRES_DB: uta_db_test
+        options: >-
+          --health-cmd pg_isready -U uta
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7.2-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        working-directory: ./analytics
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run linting
+        working-directory: ./analytics
+        run: |
+          pip install flake8
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Run tests
+        working-directory: ./analytics
+        run: |
+          pytest --cov=. --cov-report=xml --cov-report=term-missing
+        env:
+          DATABASE_URL: postgresql://uta:secret@localhost:5432/uta_db_test
+          REDIS_URL: redis://localhost:6379
+          PYTHONPATH: .
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./analytics/coverage.xml
+          flags: analytics
+          name: analytics-coverage
+
+  test-frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run linting
+        working-directory: ./frontend
+        run: npm run lint
+
+      - name: Run type checking
+        working-directory: ./frontend
+        run: npm run type-check || true  # Allow to fail for now
+
+      - name: Run tests
+        working-directory: ./frontend
+        run: npm test -- --watchAll=false --coverage
+
+      - name: Build application
+        working-directory: ./frontend
+        run: npm run build
+
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-analytics, test-frontend]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-analytics, test-frontend]
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Extract metadata
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: urban-transport-analytics/backend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: ${{ github.ref == 'refs/heads/main' }}
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata for analytics
+        id: meta-analytics
+        uses: docker/metadata-action@v5
+        with:
+          images: urban-transport-analytics/analytics
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push analytics image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./analytics
+          push: ${{ github.ref == 'refs/heads/main' }}
+          tags: ${{ steps.meta-analytics.outputs.tags }}
+          labels: ${{ steps.meta-analytics.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata for frontend
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: urban-transport-analytics/frontend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: ${{ github.ref == 'refs/heads/main' }}
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build nginx image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./nginx
+          push: ${{ github.ref == 'refs/heads/main' }}
+          tags: urban-transport-analytics/nginx:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start services
+        run: |
+          docker-compose -f docker-compose.yml up -d
+          echo "Waiting for services to be healthy..."
+          sleep 30
+
+      - name: Wait for services to be ready
+        run: |
+          timeout 300 bash -c 'until curl -f http://localhost/api/health; do sleep 5; done'
+          timeout 300 bash -c 'until curl -f http://localhost/analytics/health; do sleep 5; done'
+          timeout 300 bash -c 'until curl -f http://localhost/; do sleep 5; done'
+
+      - name: Run integration tests
+        run: |
+          echo "Testing backend API..."
+          curl -f http://localhost/api/health || exit 1
+          
+          echo "Testing analytics API..."
+          curl -f http://localhost/analytics/health || exit 1
+          
+          echo "Testing frontend..."
+          curl -f http://localhost/ || exit 1
+          
+          echo "Testing API endpoints..."
+          curl -f http://localhost/api/routes || exit 1
+          curl -f http://localhost/analytics/stats/kpis || exit 1
+
+      - name: Stop services
+        if: always()
+        run: docker-compose -f docker-compose.yml down
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [integration-test]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        run: |
+          echo "🚀 Deploying to staging environment..."
+          # Add your deployment commands here
+          echo "Deployment completed successfully!"

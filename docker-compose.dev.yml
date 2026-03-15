@@ -1,0 +1,21 @@
+version: '3.9'
+
+services:
+  backend:
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: npm run dev
+    environment:
+      - NODE_ENV=development
+
+  frontend:
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev
+
+  analytics:
+    volumes:
+      - ./analytics:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
