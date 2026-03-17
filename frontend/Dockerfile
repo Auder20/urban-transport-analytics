@@ -34,8 +34,8 @@ RUN chown -R nextjs:nodejs /usr/share/nginx/html && \
     chown -R nextjs:nodejs /var/log/nginx && \
     chown -R nextjs:nodejs /etc/nginx/conf.d
 
-# Switch to non-root user
-USER nextjs
+# Keep nginx running as root (required for PID file)
+# USER nextjs
 
 # Expose port
 EXPOSE 3000

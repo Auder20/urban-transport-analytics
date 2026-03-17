@@ -45,7 +45,7 @@ async def init_db():
     """Initialize database tables"""
     async with engine.begin() as conn:
         # Import all models here to ensure they are registered
-        from models.schemas import Base
+        # Base is already defined in this file
         await conn.run_sync(Base.metadata.create_all)
 
 

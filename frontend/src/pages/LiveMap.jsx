@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import TransportMap, { FullScreenLayout } from '@/components/Map/TransportMap'
+import TransportMap from '@/components/Map/TransportMap'
+import { FullScreenLayout } from '@/components/Layout/PageLayout'
 import { useBusLocations } from '@/hooks/useBusLocations'
 import { useRoutes } from '@/hooks/useRoutes'
 import { useAppStore } from '@/store/useAppStore'
