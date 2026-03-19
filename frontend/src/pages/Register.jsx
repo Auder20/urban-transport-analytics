@@ -1,20 +1,21 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Bus, Eye, EyeOff, AlertCircle } from 'lucide-react'
-import { useAppStore } from '@/store/useAppStore'
+import { Bus, Eye, EyeOff, AlertCircle, UserPlus } from 'lucide-react'
 import api from '@/services/api'
 
-export default function Login() {
+export default function Register() {
   const navigate = useNavigate()
-  const { setUser, setToken } = useAppStore()
   
   const [formData, setFormData] = useState({
+    fullName: '',
     email: '',
-    password: ''
+    password: '',
+    role: 'viewer'
   })
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -22,26 +23,34 @@ export default function Login() {
       ...prev,
       [name]: value
     }))
-    // Clear error when user starts typing
+    // Clear messages when user starts typing
     if (error) setError('')
+    if (success) setSuccess('')
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsLoading(true)
     setError('')
+    setSuccess('')
+
+    // Basic validation
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long')
+      setIsLoading(false)
+      return
+    }
 
     try {
-      const response = await api.post('/auth/login', formData)
+      await api.post('/auth/register', formData)
+      setSuccess('Account created successfully! Redirecting to login...')
       
-      // Store user data and token
-      setUser(response.data.user)
-      setToken(response.data.accessToken)
-      
-      // Redirect to dashboard
-      navigate('/dashboard')
+      // Redirect to login after 2 seconds
+      setTimeout(() => {
+        navigate('/login')
+      }, 2000)
     } catch (err) {
-      const errorMessage = err.response?.data?.error || 'Login failed. Please try again.'
+      const errorMessage = err.response?.data?.error || 'Registration failed. Please try again.'
       setError(errorMessage)
     } finally {
       setIsLoading(false)
@@ -54,19 +63,27 @@ export default function Login() {
         {/* Header */}
         <div className="text-center">
           <div className="mx-auto h-16 w-16 bg-primary-600 rounded-xl flex items-center justify-center">
-            <Bus size={32} className="text-white" />
+            <UserPlus size={32} className="text-white" />
           </div>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            Urban Transport Analytics
+            Create Account
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            Sign in to your account
+            Join Urban Transport Analytics
           </p>
         </div>
 
-        {/* Login Form */}
+        {/* Registration Form */}
         <div className="bg-white shadow-xl rounded-lg p-8">
           <form className="space-y-6" onSubmit={handleSubmit}>
+            {/* Success Message */}
+            {success && (
+              <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <AlertCircle size={16} className="text-green-500" />
+                <span className="text-sm text-green-600">{success}</span>
+              </div>
+            )}
+
             {/* Error Message */}
             {error && (
               <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -74,6 +91,24 @@ export default function Login() {
                 <span className="text-sm text-red-600">{error}</span>
               </div>
             )}
+
+            {/* Full Name */}
+            <div>
+              <label htmlFor="fullName" className="label">
+                Full Name
+              </label>
+              <input
+                id="fullName"
+                name="fullName"
+                type="text"
+                autoComplete="name"
+                required
+                value={formData.fullName}
+                onChange={handleChange}
+                className="input"
+                placeholder="Enter your full name"
+              />
+            </div>
 
             {/* Email */}
             <div>
@@ -96,15 +131,16 @@ export default function Login() {
             {/* Password */}
             <div>
               <label htmlFor="password" className="label">
-                Password
+                Password (min. 6 characters)
               </label>
               <div className="relative">
                 <input
                   id="password"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   required
+                  minLength={6}
                   value={formData.password}
                   onChange={handleChange}
                   className="input pr-10"
@@ -124,67 +160,56 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Remember me & Forgot password */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                  Remember me
-                </label>
-              </div>
-
-              <div className="text-sm">
-                <a href="#" className="font-medium text-primary-600 hover:text-primary-500">
-                  Forgot your password?
-                </a>
-              </div>
+            {/* Role */}
+            <div>
+              <label htmlFor="role" className="label">
+                Role
+              </label>
+              <select
+                id="role"
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                className="input"
+                required
+              >
+                <option value="viewer">Viewer - Read-only access</option>
+                <option value="analyst">Analyst - Can view and analyze data</option>
+                <option value="operator">Operator - Can manage operations</option>
+              </select>
             </div>
 
             {/* Submit Button */}
             <div>
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || success}
                 className="btn btn-primary w-full"
               >
                 {isLoading ? (
                   <div className="flex items-center justify-center">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                    Signing in...
+                    Creating account...
                   </div>
                 ) : (
-                  'Sign in'
+                  'Create Account'
                 )}
               </button>
             </div>
           </form>
 
-          {/* Demo Credentials */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-800 font-medium mb-2">Demo Credentials:</p>
-            <div className="text-xs text-blue-600 space-y-1">
-              <p>Email: admin@uta.com</p>
-              <p>Password: admin123</p>
-            </div>
+          {/* Login Link */}
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+              Already have an account?{' '}
+              <Link 
+                to="/login" 
+                className="font-medium text-primary-600 hover:text-primary-500"
+              >
+                Sign in here
+              </Link>
+            </p>
           </div>
-        </div>
-
-        {/* Register Link */}
-        <div className="text-center">
-          <p className="text-sm text-gray-600">
-            Don't have an account?{' '}
-            <Link 
-              to="/register" 
-              className="font-medium text-primary-600 hover:text-primary-500"
-            >
-              Create account
-            </Link>
-          </p>
         </div>
 
         {/* Footer */}

@@ -5,12 +5,14 @@ services:
     ports: ['80:80', '443:443']
     depends_on: [frontend, backend]
     networks: [uta-net]
+    restart: unless-stopped
 
   frontend:
     build: ./frontend
     environment:
       - VITE_API_URL=http://localhost/api
     networks: [uta-net]
+    restart: unless-stopped
 
   backend:
     build: ./backend
@@ -23,9 +25,10 @@ services:
       - NODE_ENV=production
     depends_on:
       postgres: { condition: service_healthy }
-      mongo: { condition: service_started }
-      redis: { condition: service_started }
+      mongo:    { condition: service_started }
+      redis:    { condition: service_started }
     networks: [uta-net]
+    restart: unless-stopped
 
   analytics:
     build: ./analytics
@@ -34,6 +37,30 @@ services:
       - REDIS_URL=redis://redis:6379
     depends_on: [postgres, redis]
     networks: [uta-net]
+    restart: unless-stopped
+
+  # ── Seed service ────────────────────────────────────────────────────────────
+  # Runs once automatically on first docker compose up.
+  # Uses a named volume flag to skip if already seeded.
+  # Safe to re-run manually: docker compose run --rm seed
+  seed:
+    build: ./backend
+    command: >
+      sh -c "
+        echo '⏳ Waiting for PostgreSQL...' &&
+        until pg_isready -h postgres -U uta; do sleep 1; done &&
+        echo '✅ PostgreSQL ready' &&
+        node scripts/seed-db.js
+      "
+    environment:
+      - DATABASE_URL=postgresql://uta:secret@postgres:5432/uta_db
+      - MONGODB_URI=mongodb://mongo:27017/uta_logs
+    depends_on:
+      postgres: { condition: service_healthy }
+      mongo:    { condition: service_started }
+    networks: [uta-net]
+    # restart: no — runs once and exits
+    profiles: [seed]
 
   postgres:
     image: postgis/postgis:16-3.4
@@ -44,12 +71,14 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/src/db/migrations:/docker-entrypoint-initdb.d
+      - ./scripts:/docker-entrypoint-initdb.d/scripts
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U uta']
+      test: ['CMD-SHELL', 'pg_isready -U uta -d uta_db']
       interval: 5s
       timeout: 5s
       retries: 10
     networks: [uta-net]
+    restart: unless-stopped
 
   mongo:
     image: mongo:7.0
@@ -58,6 +87,7 @@ services:
     volumes:
       - mongo_data:/data/db
     networks: [uta-net]
+    restart: unless-stopped
 
   redis:
     image: redis:7.2-alpine
@@ -65,6 +95,7 @@ services:
     volumes:
       - redis_data:/data
     networks: [uta-net]
+    restart: unless-stopped
 
 volumes:
   postgres_data:

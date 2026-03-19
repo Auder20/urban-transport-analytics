@@ -159,11 +159,13 @@ async def root():
 from routers.predictions import router as predictions_router
 from routers.analysis import router as analysis_router
 from routers.training import router as training_router
+from routers.stats import router as stats_router
 
 # Include routers
 app.include_router(predictions_router, prefix="/predict")
 app.include_router(analysis_router)
 app.include_router(training_router)
+app.include_router(stats_router)
 
 
 # Additional endpoints for completeness

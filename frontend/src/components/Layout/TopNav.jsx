@@ -3,7 +3,7 @@ import { Bell, Search, User, Settings, LogOut } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
 import { MobileMenuButton } from './Sidebar'
 
-export default function TopNav({ title = 'Dashboard' }) {
+export default function TopNav({ title }) {
   const { user, logout } = useAppStore()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
@@ -48,7 +48,7 @@ export default function TopNav({ title = 'Dashboard' }) {
           {/* Left side */}
           <div className="flex items-center gap-4">
             <MobileMenuButton />
-            <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
+            {title && <h1 className="text-xl font-semibold text-gray-900">{title}</h1>}
           </div>
 
           {/* Right side */}
