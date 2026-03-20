@@ -77,7 +77,7 @@
     @apply bg-gray-900 text-gray-100;
   }
   .dark .card {
-    @apply bg-gray-800 border-gray-700;
+    @apply bg-gray-800 border-gray-700 text-gray-100;
   }
   .dark .input {
     @apply bg-gray-800 border-gray-600 text-gray-100 placeholder-gray-500;
@@ -87,6 +87,63 @@
   }
   .dark .btn-secondary {
     @apply bg-gray-700 text-gray-100 hover:bg-gray-600;
+  }
+  .dark .btn-danger {
+    @apply bg-red-900 text-red-100 hover:bg-red-800;
+  }
+  .dark header {
+    @apply bg-gray-800 border-gray-700;
+  }
+  .dark nav {
+    @apply bg-gray-800 border-gray-700;
+  }
+  .dark table thead {
+    @apply bg-gray-700;
+  }
+  .dark table tbody {
+    @apply bg-gray-800;
+  }
+  .dark table tr {
+    @apply border-gray-700;
+  }
+  .dark table th {
+    @apply text-gray-300;
+  }
+  .dark table td {
+    @apply text-gray-200;
+  }
+  .dark .bg-gray-50 {
+    @apply bg-gray-900;
+  }
+  .dark .bg-white {
+    @apply bg-gray-800;
+  }
+  .dark .text-gray-900 {
+    @apply text-gray-100;
+  }
+  .dark .text-gray-700 {
+    @apply text-gray-300;
+  }
+  .dark .text-gray-600 {
+    @apply text-gray-400;
+  }
+  .dark .text-gray-500 {
+    @apply text-gray-400;
+  }
+  .dark .border-gray-200 {
+    @apply border-gray-700;
+  }
+  .dark .border-gray-300 {
+    @apply border-gray-600;
+  }
+  .dark .divide-gray-200 > * {
+    @apply border-gray-700;
+  }
+  .dark .hover\:bg-gray-50:hover {
+    @apply bg-gray-700;
+  }
+  .dark .hover\:bg-gray-100:hover {
+    @apply bg-gray-700;
   }
 }
 

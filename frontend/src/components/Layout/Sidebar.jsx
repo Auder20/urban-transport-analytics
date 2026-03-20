@@ -73,7 +73,7 @@ export default function Sidebar() {
 
       {/* Sidebar */}
       <div className={clsx(
-        'fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:transform-none lg:static lg:inset-0',
+        'fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out lg:transform-none lg:static lg:inset-0',
         sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       )}>
         <div className="flex h-full flex-col">
@@ -83,7 +83,7 @@ export default function Sidebar() {
               <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
                 <Bus size={20} className="text-white" />
               </div>
-              <span className="text-lg font-semibold text-gray-900">UTA</span>
+              <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">UTA</span>
             </div>
             
             {/* Mobile close button */}
@@ -105,7 +105,7 @@ export default function Sidebar() {
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                     {user.fullName || user.email}
                   </p>
                   <p className="text-xs text-gray-500 truncate">
@@ -128,8 +128,8 @@ export default function Sidebar() {
                   className={clsx(
                     'group flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
                     isActive
-                      ? 'bg-primary-50 text-primary-700 border-primary-200'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-primary-50 dark:bg-primary-900 text-primary-700 dark:text-primary-200 border-primary-200'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100'
                   )}
                 >
                   <item.icon
@@ -148,7 +148,7 @@ export default function Sidebar() {
             {managementItems.length > 0 && (
               <>
                 <div className="pt-4 pb-2">
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Management</p>
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Management</p>
                 </div>
                 {managementItems.map((item) => {
                   const isActive = location.pathname === item.href
@@ -160,8 +160,8 @@ export default function Sidebar() {
                       className={clsx(
                         'group flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
                         isActive
-                          ? 'bg-primary-50 text-primary-700 border-primary-200'
-                          : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                          ? 'bg-primary-50 dark:bg-primary-900 text-primary-700 dark:text-primary-200 border-primary-200'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100'
                       )}
                     >
                       <item.icon
@@ -182,7 +182,7 @@ export default function Sidebar() {
             {scheduleItems.length > 0 && (
               <>
                 <div className="pt-4 pb-2">
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Operations</p>
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Operations</p>
                 </div>
                 {scheduleItems.map((item) => {
                   const isActive = location.pathname === item.href
@@ -194,8 +194,8 @@ export default function Sidebar() {
                       className={clsx(
                         'group flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
                         isActive
-                          ? 'bg-primary-50 text-primary-700 border-primary-200'
-                          : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                          ? 'bg-primary-50 dark:bg-primary-900 text-primary-700 dark:text-primary-200 border-primary-200'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100'
                       )}
                     >
                       <item.icon
@@ -217,7 +217,7 @@ export default function Sidebar() {
           {canViewAnalytics && (
             <div className="px-4 py-4 border-t border-gray-200">
               <div className="mb-2">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Analytics</p>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Analytics</p>
               </div>
               <NavLink
                 to="/analytics"
@@ -245,7 +245,7 @@ export default function Sidebar() {
           <div className="px-4 py-4 border-t border-gray-200">
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-colors"
+              className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
             >
               <LogOut size={18} className="text-gray-400" />
               <span>Logout</span>

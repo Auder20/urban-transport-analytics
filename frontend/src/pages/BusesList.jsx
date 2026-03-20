@@ -1,22 +1,40 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { PageLayout } from '@/components/Layout/PageLayout'
 import { usePermissions } from '@/hooks/usePermissions'
-import { useAllBuses } from '@/hooks/useBuses'
+import { useAllBuses, useDeleteBus } from '@/hooks/useBuses'
 import { Plus, Search, Filter, Edit, Trash2, Eye } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 export default function BusesList() {
   const { canEdit } = usePermissions()
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
 
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('')
   const { data, isLoading: loading, isError } = useAllBuses(page, 20, {
-    search: searchTerm || undefined,
+    search: debouncedSearch || undefined,
     status: statusFilter || undefined,
   })
   const buses = data?.buses || []
   const pagination = data?.pagination
+
+  const { mutate: deleteBus, isPending: deleting } = useDeleteBus()
+
+  const handleDelete = (bus) => {
+    if (!window.confirm(`Deactivate bus ${bus.plateNumber}? It will be marked as inactive.`)) return
+    deleteBus(bus.id, {
+      onSuccess: () => toast.success(`Bus ${bus.plateNumber} deactivated`),
+      onError: () => toast.error('Failed to deactivate bus'),
+    })
+  }
 
   const filteredBuses = buses
 
@@ -181,7 +199,11 @@ export default function BusesList() {
                             <button className="text-primary-600 hover:text-primary-900">
                               <Edit size={16} />
                             </button>
-                            <button className="text-red-600 hover:text-red-900">
+                            <button
+                              onClick={() => handleDelete(bus)}
+                              disabled={deleting}
+                              className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                            >
                               <Trash2 size={16} />
                             </button>
                           </div>

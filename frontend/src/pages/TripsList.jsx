@@ -3,6 +3,7 @@ import { PageLayout } from '@/components/Layout/PageLayout'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useAllTrips } from '@/hooks/useTrips'
 import { Plus, Search, Filter, Edit, Trash2, Calendar, Clock, Route } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 export default function TripsList() {
   const { canEdit } = usePermissions()
@@ -248,10 +249,16 @@ export default function TripsList() {
                       {canEdit && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center gap-2">
-                            <button className="text-primary-600 hover:text-primary-900">
+                            <button
+                              onClick={() => toast('Trip details — coming soon', { icon: '👁️' })}
+                              className="text-primary-600 hover:text-primary-900"
+                            >
                               <Edit size={16} />
                             </button>
-                            <button className="text-red-600 hover:text-red-900">
+                            <button
+                              onClick={() => toast('Trips are historical records and cannot be deleted', { icon: 'ℹ️' })}
+                              className="text-red-600 hover:text-red-900"
+                            >
                               <Trash2 size={16} />
                             </button>
                           </div>

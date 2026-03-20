@@ -36,3 +36,11 @@ export function useUpdateBus() {
     },
   })
 }
+
+export function useDeleteBus() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => busesService.update(id, { status: 'inactive' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['buses'] }),
+  })
+}

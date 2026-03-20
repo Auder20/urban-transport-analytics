@@ -100,13 +100,13 @@ export default function TopNav({ title }) {
   }
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
+    <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Left side */}
           <div className="flex items-center gap-4">
             <MobileMenuButton />
-            {title && <h1 className="text-xl font-semibold text-gray-900">{title}</h1>}
+            {title && <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{title}</h1>}
           </div>
 
           {/* Right side */}
@@ -231,9 +231,9 @@ export default function TopNav({ title }) {
 
               {/* Notifications dropdown */}
               {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                  <div className="p-4 border-b border-gray-200">
-                    <h3 className="text-sm font-medium text-gray-900">Notifications</h3>
+                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+                  <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                    <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Notifications</h3>
                   </div>
                   <div className="max-h-96 overflow-y-auto">
                     {notificationsLoading ? (
@@ -301,9 +301,9 @@ export default function TopNav({ title }) {
 
               {/* User dropdown */}
               {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                  <div className="p-4 border-b border-gray-200">
-                    <p className="text-sm font-medium text-gray-900">
+                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+                  <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                       {user?.fullName || user?.email}
                     </p>
                     <p className="text-xs text-gray-500">{user?.role}</p>

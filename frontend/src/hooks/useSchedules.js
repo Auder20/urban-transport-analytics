@@ -25,3 +25,11 @@ export function useCreateSchedule() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['schedules'] }),
   })
 }
+
+export function useDeactivateSchedule() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: schedulesService.deactivate,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['schedules'] }),
+  })
+}

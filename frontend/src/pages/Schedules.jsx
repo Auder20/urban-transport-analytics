@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { PageLayout } from '@/components/Layout/PageLayout'
 import { usePermissions } from '@/hooks/usePermissions'
-import { useAllSchedules } from '@/hooks/useSchedules'
+import { useAllSchedules, useDeactivateSchedule } from '@/hooks/useSchedules'
 import { Plus, Search, Filter, Edit, Trash2, Clock, Calendar, Users } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 export default function Schedules() {
   const { isOperator } = usePermissions()
@@ -14,6 +15,17 @@ export default function Schedules() {
     route_id: routeFilter || undefined,
   })
   const schedules = data?.schedules || []
+
+  const { mutate: deactivate, isPending: deactivating } = useDeactivateSchedule()
+
+  const handleDelete = (schedule) => {
+    const routeName = schedule.route?.name || 'this schedule'
+    if (!window.confirm(`Deactivate schedule for ${routeName}?`)) return
+    deactivate(schedule.id, {
+      onSuccess: () => toast.success('Schedule deactivated'),
+      onError: () => toast.error('Failed to deactivate schedule'),
+    })
+  }
 
   const filteredSchedules = schedules
 
@@ -138,9 +150,6 @@ export default function Schedules() {
                       Schedule Info
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Route
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Timing
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -165,10 +174,6 @@ export default function Schedules() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{schedule.route?.name}</div>
                         <div className="text-sm text-gray-500">{schedule.route?.code}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{schedule.routeName}</div>
-                        <div className="text-xs text-gray-500">{schedule.routeCode}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
@@ -210,7 +215,11 @@ export default function Schedules() {
                             <button className="text-primary-600 hover:text-primary-900">
                               <Edit size={16} />
                             </button>
-                            <button className="text-red-600 hover:text-red-900">
+                            <button
+                              onClick={() => handleDelete(schedule)}
+                              disabled={deactivating}
+                              className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                            >
                               <Trash2 size={16} />
                             </button>
                           </div>

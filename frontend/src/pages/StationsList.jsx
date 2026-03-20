@@ -3,6 +3,7 @@ import { PageLayout } from '@/components/Layout/PageLayout'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useAllStations } from '@/hooks/useStations'
 import { Plus, Search, Filter, Edit, Trash2, MapPin } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 export default function StationsList() {
   const { canEdit } = usePermissions()
@@ -187,10 +188,16 @@ export default function StationsList() {
                       {canEdit && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center gap-2">
-                            <button className="text-primary-600 hover:text-primary-900">
+                            <button
+                              onClick={() => toast('Edit station — coming soon', { icon: '✏️' })}
+                              className="text-primary-600 hover:text-primary-900"
+                            >
                               <Edit size={16} />
                             </button>
-                            <button className="text-red-600 hover:text-red-900">
+                            <button
+                              onClick={() => toast('Delete station — coming soon', { icon: '🗑️' })}
+                              className="text-red-600 hover:text-red-900"
+                            >
                               <Trash2 size={16} />
                             </button>
                           </div>
