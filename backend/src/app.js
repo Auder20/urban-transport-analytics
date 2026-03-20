@@ -1,5 +1,7 @@
 require('dotenv').config();
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const cors = require('cors');
 const morgan = require('morgan');
 const swaggerUi = require('swagger-ui-express');
@@ -16,8 +18,37 @@ const routesRoutes = require('./routes/routes.routes');
 const stationsRoutes = require('./routes/stations.routes');
 const tripsRoutes = require('./routes/trips.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
+const searchRoutes = require('./routes/search.routes');
+const schedulesRoutes = require('./routes/schedules.routes');
+const notificationsRoutes = require('./routes/notifications.routes');
 
 const app = express();
+
+// Create HTTP server for Socket.IO
+const server = http.createServer(app);
+
+// Configure Socket.IO
+const io = new Server(server, {
+  cors: {
+    origin: process.env.NODE_ENV === 'production' 
+      ? ['https://uta.com', 'https://www.uta.com']
+      : ['http://localhost:3000', 'http://localhost:5173'],
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
+
+// Make io globally available
+global.io = io;
+
+// Handle WebSocket connections
+io.on('connection', (socket) => {
+  console.log('🔌 Client connected to WebSocket:', socket.id);
+  
+  socket.on('disconnect', () => {
+    console.log('🔌 Client disconnected from WebSocket:', socket.id);
+  });
+});
 
 // Swagger configuration
 const swaggerOptions = {
@@ -90,6 +121,9 @@ app.use('/api/routes', routesRoutes);
 app.use('/api/stations', stationsRoutes);
 app.use('/api/trips', tripsRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/schedules', schedulesRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // WebSocket for real-time updates (if needed in the future)
 // app.ws('/ws', (ws, req) => {
@@ -136,4 +170,4 @@ process.on('SIGINT', () => {
 initializeMongo();
 initializePubSub();
 
-module.exports = app;
+module.exports = { app, server, io };

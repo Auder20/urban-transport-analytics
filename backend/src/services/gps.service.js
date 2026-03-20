@@ -126,8 +126,10 @@ class GPSService {
     this.subscriber = await cacheService.subscribe(
       'bus:location:update',
       (data) => {
-        // Placeholder: en el futuro emitir via WebSocket a clientes conectados
-        // console.log('Bus location update:', data);
+        // Emit real-time update via WebSocket to connected clients
+        if (global.io) {
+          global.io.emit('bus:location:update', data);
+        }
       }
     );
     return this.subscriber;

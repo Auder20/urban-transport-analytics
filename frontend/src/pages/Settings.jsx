@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { User, Bell, Shield, Palette, Database, HelpCircle } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
+import { useNavigate } from 'react-router-dom'
 import api from '@/services/api'
+import toast from 'react-hot-toast'
 
 export default function Settings() {
-  const { user, theme, setTheme } = useAppStore()
+  const { user, theme, setTheme, logout } = useAppStore()
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('profile')
   const [notifications, setNotifications] = useState({
     emailAlerts: true,
@@ -76,9 +79,9 @@ export default function Settings() {
   const handleSaveProfile = async () => {
     try {
       await api.put('/api/auth/profile', profileForm)
-      alert('Profile updated successfully!')
+      toast.success('Profile updated')
     } catch (error) {
-      alert('Error updating profile. Please try again.')
+      toast.error('Error updating profile')
     }
   }
   
@@ -93,10 +96,10 @@ export default function Settings() {
         currentPassword: passwordForm.currentPassword,
         newPassword: passwordForm.newPassword
       })
-      alert('Password updated successfully!')
+      toast.success('Password updated')
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
     } catch (error) {
-      alert('Error updating password. Please check your current password and try again.')
+      toast.error('Check your current password')
     }
   }
   
@@ -114,17 +117,23 @@ export default function Settings() {
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
     } catch (error) {
-      alert('Error exporting data. Please try again.')
+      toast.error('Export failed, try again')
     }
   }
   
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
     const confirmation = window.confirm(
       '¿Estás seguro? Esta acción es irreversible. Escribe DELETE para confirmar.'
     )
     if (confirmation) {
-      // TODO: Implement account deletion API call
-      alert('Account deletion feature coming soon')
+      try {
+        await api.delete('/api/auth/account')
+        toast.success('Account deleted successfully')
+        logout()
+        navigate('/login')
+      } catch (error) {
+        toast.error('Failed to delete account')
+      }
     }
   }
 

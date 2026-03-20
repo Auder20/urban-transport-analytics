@@ -9,9 +9,13 @@ import {
   Menu,
   X,
   Bus,
-  BarChart3
+  BarChart3,
+  Users,
+  Calendar,
+  MapPin
 } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
+import { usePermissions } from '@/hooks/usePermissions'
 import { clsx } from 'clsx'
 
 const navigation = [
@@ -24,6 +28,7 @@ const navigation = [
 
 export default function Sidebar() {
   const { sidebarOpen, setSidebarOpen, user, logout } = useAppStore()
+  const { canEdit, canViewAnalytics } = usePermissions()
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -31,6 +36,30 @@ export default function Sidebar() {
     logout()
     navigate('/login')
   }
+
+  // Define navigation items with role-based access
+  const baseNavigation = [
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Live Map', href: '/map', icon: Map },
+    { name: 'Routes', href: '/routes', icon: Route },
+    { name: 'Reports', href: '/reports', icon: FileText },
+    { name: 'Settings', href: '/settings', icon: Settings },
+  ]
+
+  const managementNavigation = [
+    { name: 'Buses', href: '/buses', icon: Bus },
+    { name: 'Stations', href: '/stations', icon: MapPin },
+    { name: 'Trips', href: '/trips', icon: Calendar },
+  ]
+
+  const schedulesNavigation = [
+    { name: 'Schedules', href: '/schedules', icon: Calendar },
+  ]
+
+  // Filter navigation based on permissions
+  const navigation = baseNavigation
+  const managementItems = canEdit ? managementNavigation : []
+  const scheduleItems = canEdit ? schedulesNavigation : []
 
   return (
     <>
@@ -114,33 +143,103 @@ export default function Sidebar() {
                 </NavLink>
               )
             })}
+
+            {/* Management Section */}
+            {managementItems.length > 0 && (
+              <>
+                <div className="pt-4 pb-2">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Management</p>
+                </div>
+                {managementItems.map((item) => {
+                  const isActive = location.pathname === item.href
+                  return (
+                    <NavLink
+                      key={item.name}
+                      to={item.href}
+                      onClick={() => setSidebarOpen(false)}
+                      className={clsx(
+                        'group flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+                        isActive
+                          ? 'bg-primary-50 text-primary-700 border-primary-200'
+                          : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                      )}
+                    >
+                      <item.icon
+                        size={18}
+                        className={clsx(
+                          'flex-shrink-0',
+                          isActive ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
+                        )}
+                      />
+                      <span>{item.name}</span>
+                    </NavLink>
+                  )
+                })}
+              </>
+            )}
+
+            {/* Schedules Section */}
+            {scheduleItems.length > 0 && (
+              <>
+                <div className="pt-4 pb-2">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Operations</p>
+                </div>
+                {scheduleItems.map((item) => {
+                  const isActive = location.pathname === item.href
+                  return (
+                    <NavLink
+                      key={item.name}
+                      to={item.href}
+                      onClick={() => setSidebarOpen(false)}
+                      className={clsx(
+                        'group flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+                        isActive
+                          ? 'bg-primary-50 text-primary-700 border-primary-200'
+                          : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                      )}
+                    >
+                      <item.icon
+                        size={18}
+                        className={clsx(
+                          'flex-shrink-0',
+                          isActive ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
+                        )}
+                      />
+                      <span>{item.name}</span>
+                    </NavLink>
+                  )
+                })}
+              </>
+            )}
           </nav>
 
           {/* Analytics section */}
-          <div className="px-4 py-4 border-t border-gray-200">
-            <div className="mb-2">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Analytics</p>
-            </div>
-            <NavLink
-              to="/analytics"
-              onClick={() => setSidebarOpen(false)}
-              className={clsx(
-                'group flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
-                location.pathname.startsWith('/analytics')
-                  ? 'bg-primary-50 text-primary-700 border-primary-200'
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-              )}
-            >
-              <BarChart3
-                size={18}
+          {canViewAnalytics && (
+            <div className="px-4 py-4 border-t border-gray-200">
+              <div className="mb-2">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Analytics</p>
+              </div>
+              <NavLink
+                to="/analytics"
+                onClick={() => setSidebarOpen(false)}
                 className={clsx(
-                  'flex-shrink-0',
-                  location.pathname.startsWith('/analytics') ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
+                  'group flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+                  location.pathname.startsWith('/analytics')
+                    ? 'bg-primary-50 text-primary-700 border-primary-200'
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                 )}
-              />
-              <span>Advanced Analytics</span>
-            </NavLink>
-          </div>
+              >
+                <BarChart3
+                  size={18}
+                  className={clsx(
+                    'flex-shrink-0',
+                    location.pathname.startsWith('/analytics') ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
+                  )}
+                />
+                <span>Advanced Analytics</span>
+              </NavLink>
+            </div>
+          )}
 
           {/* Footer */}
           <div className="px-4 py-4 border-t border-gray-200">

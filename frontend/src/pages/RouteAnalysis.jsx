@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRoute, useRouteStations, useRouteBuses } from '@/hooks/useRoutes'
 import { useRouteAnalysis, useDelayPrediction } from '@/hooks/useAnalytics'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
@@ -23,7 +23,7 @@ export default function RouteAnalysis() {
   })
 
   // Set selected route in global state
-  useState(() => {
+  useEffect(() => {
     if (route) {
       setSelectedRoute(route)
     }

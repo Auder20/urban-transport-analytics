@@ -1,15 +1,84 @@
-import { useState } from 'react'
-import { Bell, Search, User, Settings, LogOut } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Bell, Search, User, Settings, LogOut, Bus, Route, MapPin } from 'lucide-react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAppStore } from '@/store/useAppStore'
 import { MobileMenuButton } from './Sidebar'
+import api from '@/services/api'
+import { useNotifications } from '@/hooks/useNotifications'
 
 export default function TopNav({ title }) {
   const { user, logout } = useAppStore()
   const navigate = useNavigate()
+  const { data: notificationsData, isLoading: notificationsLoading } = useNotifications()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState({ buses: [], routes: [], stations: [] })
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false)
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [searchTimeout, setSearchTimeout] = useState(null)
+
+  const notifications = notificationsData?.notifications || []
+  const unreadCount = notificationsData?.unreadCount || 0
+
+  // Debounced search function
+  const performSearch = useCallback(async (query) => {
+    if (query.length < 2) {
+      setSearchResults({ buses: [], routes: [], stations: [] })
+      setShowSearchDropdown(false)
+      return
+    }
+
+    setSearchLoading(true)
+    try {
+      const response = await api.get(`/api/search?q=${query}`)
+      setSearchResults(response.data)
+      setShowSearchDropdown(true)
+    } catch (error) {
+      console.error('Search error:', error)
+      setSearchResults({ buses: [], routes: [], stations: [] })
+    } finally {
+      setSearchLoading(false)
+    }
+  }, [])
+
+  // Handle search input with debouncing
+  const handleSearchChange = (e) => {
+    const query = e.target.value
+    setSearchQuery(query)
+
+    // Clear existing timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout)
+    }
+
+    // Set new timeout for 300ms debounce
+    const timeout = setTimeout(() => {
+      performSearch(query)
+    }, 300)
+
+    setSearchTimeout(timeout)
+  }
+
+  // Navigate to search result
+  const handleNavigateToResult = (type, item) => {
+    setShowSearchDropdown(false)
+    setSearchQuery('')
+    
+    switch (type) {
+      case 'buses':
+        navigate(`/buses/${item.id}`)
+        break
+      case 'routes':
+        navigate(`/routes/${item.id}`)
+        break
+      case 'stations':
+        navigate(`/stations/${item.id}`)
+        break
+      default:
+        break
+    }
+  }
 
   const handleLogout = () => {
     logout()
@@ -21,32 +90,14 @@ export default function TopNav({ title }) {
     setShowUserMenu(false)
   }
 
-  // Mock notifications
-  const notifications = [
-    {
-      id: 1,
-      title: 'High delay on Route 42',
-      message: 'Average delay increased to 18 minutes',
-      time: '5 min ago',
-      type: 'warning'
-    },
-    {
-      id: 2,
-      title: 'Bus ABC123 offline',
-      message: 'Bus has been offline for 10 minutes',
-      time: '10 min ago',
-      type: 'error'
-    },
-    {
-      id: 3,
-      title: 'System update completed',
-      message: 'Analytics models have been retrained',
-      time: '1 hour ago',
-      type: 'success'
+  const handleMarkAsRead = async (notificationId) => {
+    try {
+      await api.put(`/api/notifications/${notificationId}/read`)
+      // Refetch notifications will happen automatically due to React Query
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error)
     }
-  ]
-
-  const unreadCount = notifications.filter(n => n.type === 'error' || n.type === 'warning').length
+  }
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
@@ -68,9 +119,98 @@ export default function TopNav({ title }) {
                   type="text"
                   placeholder="Search routes, buses, stations..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={handleSearchChange}
+                  onFocus={() => searchQuery.length >= 2 && setShowSearchDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowSearchDropdown(false), 200)}
                   className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent w-64"
                 />
+
+                {/* Search dropdown */}
+                {showSearchDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-80 overflow-y-auto">
+                    {searchLoading ? (
+                      <div className="p-4 text-center text-sm text-gray-500">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600 mx-auto mb-2"></div>
+                        Searching...
+                      </div>
+                    ) : (
+                      <>
+                        {/* Buses section */}
+                        {searchResults.buses.length > 0 && (
+                          <div className="p-2">
+                            <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Buses</div>
+                            {searchResults.buses.map((bus) => (
+                              <button
+                                key={bus.id}
+                                onClick={() => handleNavigateToResult('buses', bus)}
+                                className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-100 flex items-center gap-2"
+                              >
+                                <Bus size={14} className="text-gray-400" />
+                                <span className="font-medium">{bus.name}</span>
+                                <span className={`inline-flex px-1.5 py-0.5 text-xs rounded-full ${
+                                  bus.status === 'active' ? 'bg-green-100 text-green-800' :
+                                  bus.status === 'maintenance' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {bus.status}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Routes section */}
+                        {searchResults.routes.length > 0 && (
+                          <div className="p-2">
+                            <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Routes</div>
+                            {searchResults.routes.map((route) => (
+                              <button
+                                key={route.id}
+                                onClick={() => handleNavigateToResult('routes', route)}
+                                className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-100 flex items-center gap-2"
+                              >
+                                <Route size={14} className="text-gray-400" />
+                                <div>
+                                  <span className="font-medium">{route.name}</span>
+                                  <span className="text-gray-500 ml-2">({route.code})</span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Stations section */}
+                        {searchResults.stations.length > 0 && (
+                          <div className="p-2">
+                            <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Stations</div>
+                            {searchResults.stations.map((station) => (
+                              <button
+                                key={station.id}
+                                onClick={() => handleNavigateToResult('stations', station)}
+                                className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-100 flex items-center gap-2"
+                              >
+                                <MapPin size={14} className="text-gray-400" />
+                                <div>
+                                  <span className="font-medium">{station.name}</span>
+                                  <span className="text-gray-500 ml-2">({station.code})</span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* No results */}
+                        {searchResults.buses.length === 0 && 
+                         searchResults.routes.length === 0 && 
+                         searchResults.stations.length === 0 && (
+                          <div className="p-4 text-center text-sm text-gray-500">
+                            No results found for "{searchQuery}"
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -96,26 +236,41 @@ export default function TopNav({ title }) {
                     <h3 className="text-sm font-medium text-gray-900">Notifications</h3>
                   </div>
                   <div className="max-h-96 overflow-y-auto">
-                    {notifications.length > 0 ? (
+                    {notificationsLoading ? (
+                      <div className="p-4 text-center text-sm text-gray-500">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600 mx-auto mb-2"></div>
+                        Loading notifications...
+                      </div>
+                    ) : notifications.length > 0 ? (
                       notifications.map((notification) => (
-                        <div key={notification.id} className="p-4 border-b border-gray-100 hover:bg-gray-50">
+                        <div 
+                          key={notification.id} 
+                          className={`p-4 border-b border-gray-100 hover:bg-gray-50 ${!notification.is_read ? 'bg-blue-50' : ''}`}
+                          onClick={() => !notification.is_read && handleMarkAsRead(notification.id)}
+                        >
                           <div className="flex items-start gap-3">
                             <div className={`w-2 h-2 rounded-full mt-2 ${
                               notification.type === 'error' ? 'bg-red-500' :
                               notification.type === 'warning' ? 'bg-yellow-500' :
-                              'bg-green-500'
+                              notification.type === 'success' ? 'bg-green-500' :
+                              'bg-gray-400'
                             }`}></div>
                             <div className="flex-1">
                               <p className="text-sm font-medium text-gray-900">{notification.title}</p>
                               <p className="text-xs text-gray-500 mt-1">{notification.message}</p>
-                              <p className="text-xs text-gray-400 mt-1">{notification.time}</p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                {new Date(notification.createdAt).toLocaleString()}
+                              </p>
                             </div>
+                            {!notification.is_read && (
+                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                            )}
                           </div>
                         </div>
                       ))
                     ) : (
                       <div className="p-4 text-center text-sm text-gray-500">
-                        No new notifications
+                        No notifications
                       </div>
                     )}
                   </div>

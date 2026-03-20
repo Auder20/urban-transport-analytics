@@ -1,4 +1,4 @@
-const app = require('./app');
+const { app, server, io } = require('./app');
 const pool = require('./config/database');
 
 const PORT = process.env.PORT || 3001;
@@ -41,11 +41,12 @@ const startServer = async () => {
 
     await runSeedIfNeeded();
 
-    const server = app.listen(PORT, '0.0.0.0', () => {
+    server.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Urban Transport Analytics API running on port ${PORT}`);
       console.log(`📚 API Documentation: http://localhost:${PORT}/api/docs`);
       console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🔌 WebSocket server ready for real-time updates`);
     });
 
     server.on('error', (error) => {

@@ -478,6 +478,47 @@ class AuthController {
       throw error;
     }
   }
+
+  async deleteAccount(req, res) {
+    try {
+      const userId = req.user.userId;
+
+      // Start transaction
+      await pool.query('BEGIN');
+
+      try {
+        // Delete user sessions from cache
+        const sessionKey = `session:${userId}`;
+        await cacheService.del(sessionKey);
+
+        // Delete user from database (soft delete by setting is_active = false)
+        const updateUserQuery = `
+          UPDATE users 
+          SET is_active = false, updated_at = NOW()
+          WHERE id = $1
+        `;
+        await pool.query(updateUserQuery, [userId]);
+
+        // Commit transaction
+        await pool.query('COMMIT');
+
+        res.json({
+          message: 'Account deleted successfully',
+          code: 'ACCOUNT_DELETED'
+        });
+      } catch (error) {
+        // Rollback on error
+        await pool.query('ROLLBACK');
+        throw error;
+      }
+    } catch (error) {
+      console.error('Delete account error:', error);
+      res.status(500).json({
+        error: 'Failed to delete account',
+        code: 'DELETE_ACCOUNT_ERROR'
+      });
+    }
+  }
 }
 
 module.exports = new AuthController();

@@ -2,12 +2,13 @@ import { useState } from 'react'
 import TransportMap from '@/components/Map/TransportMap'
 import { FullScreenLayout } from '@/components/Layout/PageLayout'
 import { useBusLocations } from '@/hooks/useBusLocations'
+import { useBusLocationSocket } from '@/hooks/useWebSocket'
 import { useRoutes } from '@/hooks/useRoutes'
 import { useAppStore } from '@/store/useAppStore'
 import { Filter, Layers, Maximize2, Minimize2 } from 'lucide-react'
 
 export default function LiveMap() {
-  const { buses, isLoading: busesLoading } = useBusLocations(5000)
+  const { buses, isLoading: busesLoading } = useBusLocations(30000) // Reduced frequency, WebSocket handles real-time updates
   const { data: routesData, isLoading: routesLoading } = useRoutes(1, 100)
   const { 
     selectedRoute, 
@@ -20,6 +21,21 @@ export default function LiveMap() {
   } = useAppStore()
   const [showFilters, setShowFilters] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [liveBuses, setLiveBuses] = useState({})
+
+  // WebSocket connection for real-time bus updates
+  useBusLocationSocket((data) => {
+    setLiveBuses(prev => ({
+      ...prev,
+      [data.busId]: {
+        ...prev[data.busId],
+        lat: data.lat,
+        lng: data.lng,
+        speed: data.speed,
+        timestamp: data.timestamp
+      }
+    }))
+  })
 
   const routes = routesData?.routes || []
   const activeBuses = buses?.filter(bus => bus.status === 'active') || []

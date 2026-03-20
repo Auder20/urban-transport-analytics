@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { FileText, Download, Calendar, Filter, BarChart3, Clock, MapPin, AlertTriangle } from 'lucide-react'
 import { useDelays, useProblematicRoutes, usePeakHours, useAnomalies } from '@/hooks/useAnalytics'
 import api from '@/services/api'
+import toast from 'react-hot-toast'
 
 export default function Reports() {
   const [selectedReport, setSelectedReport] = useState('performance')
@@ -61,7 +62,7 @@ export default function Reports() {
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
     } catch (err) {
-      alert('Error al generar el reporte. Intenta de nuevo.')
+      toast.error('Error generating report')
     } finally {
       setIsGenerating(false)
     }
