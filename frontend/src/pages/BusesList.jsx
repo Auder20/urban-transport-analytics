@@ -1,27 +1,24 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { PageLayout } from '@/components/Layout/PageLayout'
 import { usePermissions } from '@/hooks/usePermissions'
+import { useAllBuses } from '@/hooks/useBuses'
 import { Plus, Search, Filter, Edit, Trash2, Eye } from 'lucide-react'
 
 export default function BusesList() {
   const { canEdit } = usePermissions()
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
-  const [buses, setBuses] = useState([])
-  const [loading, setLoading] = useState(true)
 
-  // Mock data - replace with actual API call
-  useState(() => {
-    setTimeout(() => {
-      setBuses([])
-      setLoading(false)
-    }, 1000)
-  }, [])
+  const [page, setPage] = useState(1)
+  const [statusFilter, setStatusFilter] = useState('')
+  const { data, isLoading: loading, isError } = useAllBuses(page, 20, {
+    search: searchTerm || undefined,
+    status: statusFilter || undefined,
+  })
+  const buses = data?.buses || []
+  const pagination = data?.pagination
 
-  const filteredBuses = buses.filter(bus => 
-    bus.plateNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    bus.route?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredBuses = buses
 
   return (
     <PageLayout title="Buses Management">
@@ -69,7 +66,11 @@ export default function BusesList() {
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select className="w-full border border-gray-300 rounded-md px-3 py-2">
+                <select 
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  value={statusFilter}
+                  onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
+                >
                   <option value="">All Status</option>
                   <option value="active">Active</option>
                   <option value="maintenance">Maintenance</option>
@@ -97,6 +98,11 @@ export default function BusesList() {
 
         {/* Buses Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
+          {isError && (
+            <div className="p-8 text-center">
+              <p className="text-red-600">Error loading buses. Please try again.</p>
+            </div>
+          )}
           {loading ? (
             <div className="p-8 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
@@ -152,7 +158,7 @@ export default function BusesList() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{bus.route || 'N/A'}</div>
+                        <div className="text-sm text-gray-900">{bus.currentRoute?.name || 'N/A'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -164,10 +170,10 @@ export default function BusesList() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{bus.occupancy || 0}%</div>
+                        <div className="text-sm text-gray-900">{bus.lastLocation ? 'GPS active' : 'No GPS'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {bus.lastSeen || 'Never'}
+                        {bus.lastSeenAt ? new Date(bus.lastSeenAt).toLocaleString() : 'Never'}
                       </td>
                       {canEdit && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -185,6 +191,29 @@ export default function BusesList() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {pagination && pagination.pages > 1 && (
+            <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200">
+              <p className="text-sm text-gray-600">
+                Page {pagination.page} of {pagination.pages} — {pagination.total} buses
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="btn btn-secondary text-sm disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
+                  disabled={page === pagination.pages}
+                  className="btn btn-secondary text-sm disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           )}
         </div>

@@ -1,27 +1,23 @@
 import { useState } from 'react'
 import { PageLayout } from '@/components/Layout/PageLayout'
 import { usePermissions } from '@/hooks/usePermissions'
+import { useAllStations } from '@/hooks/useStations'
 import { Plus, Search, Filter, Edit, Trash2, MapPin } from 'lucide-react'
 
 export default function StationsList() {
   const { canEdit } = usePermissions()
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
-  const [stations, setStations] = useState([])
-  const [loading, setLoading] = useState(true)
 
-  // Mock data - replace with actual API call
-  useState(() => {
-    setTimeout(() => {
-      setStations([])
-      setLoading(false)
-    }, 1000)
-  }, [])
+  const [page, setPage] = useState(1)
+  const [typeFilter, setTypeFilter] = useState('')
+  const { data, isLoading: loading, isError } = useAllStations(page, 20, {
+    type: typeFilter || undefined,
+  })
+  const stations = data?.stations || []
+  const pagination = data?.pagination
 
-  const filteredStations = stations.filter(station => 
-    station.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    station.code?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredStations = stations
 
   return (
     <PageLayout title="Stations Management">
@@ -69,7 +65,11 @@ export default function StationsList() {
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                <select className="w-full border border-gray-300 rounded-md px-3 py-2">
+                <select 
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  value={typeFilter}
+                  onChange={(e) => { setTypeFilter(e.target.value); setPage(1) }}
+                >
                   <option value="">All Types</option>
                   <option value="bus_stop">Bus Stop</option>
                   <option value="terminal">Terminal</option>
@@ -99,6 +99,11 @@ export default function StationsList() {
 
         {/* Stations Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
+          {isError && (
+            <div className="p-8 text-center">
+              <p className="text-red-600">Error loading stations. Please try again.</p>
+            </div>
+          )}
           {loading ? (
             <div className="p-8 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
@@ -155,7 +160,7 @@ export default function StationsList() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{station.code || 'N/A'}</div>
+                        <div className="text-sm text-gray-900">{station.stationCode || 'N/A'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -168,16 +173,15 @@ export default function StationsList() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {station.lat?.toFixed(4)}, {station.lng?.toFixed(4)}
+                          {station.location?.lat?.toFixed(4)}, {station.location?.lng?.toFixed(4)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          station.status === 'active' ? 'bg-green-100 text-green-800' :
-                          station.status === 'maintenance' ? 'bg-yellow-100 text-yellow-800' :
+                          station.isActive ? 'bg-green-100 text-green-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>
-                          {station.status || 'Unknown'}
+                          {station.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
                       {canEdit && (
@@ -196,6 +200,29 @@ export default function StationsList() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {pagination && pagination.pages > 1 && (
+            <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200">
+              <p className="text-sm text-gray-600">
+                Page {pagination.page} of {pagination.pages} — {pagination.total} stations
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="btn btn-secondary text-sm disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
+                  disabled={page === pagination.pages}
+                  className="btn btn-secondary text-sm disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           )}
         </div>

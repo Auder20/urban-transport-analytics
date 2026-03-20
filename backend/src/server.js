@@ -39,6 +39,17 @@ const startServer = async () => {
     await pool.query('SELECT NOW()');
     console.log('✅ PostgreSQL connected successfully');
 
+    // Run pending migrations
+    const fs = require('fs')
+    const path = require('path')
+    const migrationsDir = path.join(__dirname, 'db/migrations')
+    const migrationFiles = fs.readdirSync(migrationsDir).sort()
+    for (const file of migrationFiles) {
+      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8')
+      await pool.query(sql)
+    }
+    console.log('✅ Migrations applied')
+
     await runSeedIfNeeded();
 
     server.listen(PORT, '0.0.0.0', () => {

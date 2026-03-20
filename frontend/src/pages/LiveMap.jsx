@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import TransportMap from '@/components/Map/TransportMap'
 import { FullScreenLayout } from '@/components/Layout/PageLayout'
 import { useBusLocations } from '@/hooks/useBusLocations'
@@ -24,7 +24,7 @@ export default function LiveMap() {
   const [liveBuses, setLiveBuses] = useState({})
 
   // WebSocket connection for real-time bus updates
-  useBusLocationSocket((data) => {
+  const handleBusUpdate = useCallback((data) => {
     setLiveBuses(prev => ({
       ...prev,
       [data.busId]: {
@@ -35,7 +35,9 @@ export default function LiveMap() {
         timestamp: data.timestamp
       }
     }))
-  })
+  }, [])
+
+  useBusLocationSocket(handleBusUpdate)
 
   const routes = routesData?.routes || []
   const activeBuses = buses?.filter(bus => bus.status === 'active') || []

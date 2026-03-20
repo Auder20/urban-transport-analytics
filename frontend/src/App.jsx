@@ -11,6 +11,10 @@ import Settings from '@/pages/Settings'
 import Analytics from '@/pages/Analytics'
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
+import BusesList from '@/pages/BusesList'
+import StationsList from '@/pages/StationsList'
+import TripsList from '@/pages/TripsList'
+import Schedules from '@/pages/Schedules'
 
 // Protected route wrapper
 const ProtectedRoute = ({ children }) => {
@@ -58,6 +62,10 @@ function App() {
           <Route path="reports" element={<Reports />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="buses" element={<BusesList />} />
+          <Route path="stations" element={<StationsList />} />
+          <Route path="trips" element={<TripsList />} />
+          <Route path="schedules" element={<Schedules />} />
         </Route>
         
         <Route path="*" element={

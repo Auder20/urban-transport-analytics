@@ -1,7 +1,6 @@
 const express = require('express');
-const router = express.Router();
 const pool = require('../config/database');
-const asyncHandler = require('../middleware/asyncHandler');
+const { asyncHandler } = require('../middleware/errorHandler');
 
 /**
  * @swagger

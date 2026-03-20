@@ -1,29 +1,28 @@
 import { useState } from 'react'
 import { PageLayout } from '@/components/Layout/PageLayout'
 import { usePermissions } from '@/hooks/usePermissions'
+import { useAllTrips } from '@/hooks/useTrips'
 import { Plus, Search, Filter, Edit, Trash2, Calendar, Clock, Route } from 'lucide-react'
 
 export default function TripsList() {
   const { canEdit } = usePermissions()
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
-  const [trips, setTrips] = useState([])
-  const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState('list') // 'list' or 'calendar'
 
-  // Mock data - replace with actual API call
-  useState(() => {
-    setTimeout(() => {
-      setTrips([])
-      setLoading(false)
-    }, 1000)
-  }, [])
+  const [page, setPage] = useState(1)
+  const [statusFilter, setStatusFilter] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const { data, isLoading: loading, isError } = useAllTrips(page, 20, {
+    status: statusFilter || undefined,
+    from: dateFrom || undefined,
+    to: dateTo || undefined,
+  })
+  const trips = data?.trips || []
+  const pagination = data?.pagination
 
-  const filteredTrips = trips.filter(trip => 
-    trip.routeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    trip.busPlate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    trip.driverName?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredTrips = trips
 
   return (
     <PageLayout title="Trips Management">
@@ -95,11 +94,26 @@ export default function TripsList() {
                 <input
                   type="date"
                   className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  value={dateFrom}
+                  onChange={(e) => { setDateFrom(e.target.value); setPage(1) }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+                <input
+                  type="date"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  value={dateTo}
+                  onChange={(e) => { setDateTo(e.target.value); setPage(1) }}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select className="w-full border border-gray-300 rounded-md px-3 py-2">
+                <select 
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  value={statusFilter}
+                  onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
+                >
                   <option value="">All Status</option>
                   <option value="scheduled">Scheduled</option>
                   <option value="in_progress">In Progress</option>
@@ -125,6 +139,11 @@ export default function TripsList() {
 
         {/* Trips Content */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
+          {isError && (
+            <div className="p-8 text-center">
+              <p className="text-red-600">Error loading trips. Please try again.</p>
+            </div>
+          )}
           {loading ? (
             <div className="p-8 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
@@ -186,26 +205,26 @@ export default function TripsList() {
                   {filteredTrips.map((trip) => (
                     <tr key={trip.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{trip.tripCode}</div>
-                        <div className="text-sm text-gray-500">{trip.busPlate}</div>
+                        <div className="text-sm font-medium text-gray-900">{trip.id?.slice(0, 8)}...</div>
+                        <div className="text-sm text-gray-500">{trip.bus?.plateNumber}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <Route className="text-gray-400 mr-2" size={16} />
-                          <div className="text-sm text-gray-900">{trip.routeName}</div>
+                          <div className="text-sm text-gray-900">{trip.route?.name}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
                           <div className="flex items-center gap-1">
                             <Clock size={12} />
-                            {trip.startTime}
+                            {trip.startedAt ? new Date(trip.startedAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : 'N/A'}
                           </div>
-                          <div className="text-xs text-gray-500">{trip.date}</div>
+                          <div className="text-xs text-gray-500">{trip.startedAt ? new Date(trip.startedAt).toLocaleDateString() : ''}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{trip.driverName}</div>
+                        <div className="text-sm text-gray-900">{trip.driver?.name || 'N/A'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -218,12 +237,13 @@ export default function TripsList() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {trip.performance ? `${trip.performance.onTime}%` : 'N/A'}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {trip.performance?.delay || '0 min delay'}
-                        </div>
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          (trip.delayMinutes || 0) <= 5 ? 'bg-green-100 text-green-800' :
+                          (trip.delayMinutes || 0) <= 15 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {trip.delayMinutes != null ? `${trip.delayMinutes} min` : 'N/A'}
+                        </span>
                       </td>
                       {canEdit && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -241,6 +261,29 @@ export default function TripsList() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {pagination && pagination.pages > 1 && (
+            <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200">
+              <p className="text-sm text-gray-600">
+                Page {pagination.page} of {pagination.pages} — {pagination.total} trips
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="btn btn-secondary text-sm disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
+                  disabled={page === pagination.pages}
+                  className="btn btn-secondary text-sm disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           )}
         </div>
