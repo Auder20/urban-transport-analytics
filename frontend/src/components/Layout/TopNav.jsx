@@ -1,16 +1,23 @@
 import { useState } from 'react'
 import { Bell, Search, User, Settings, LogOut } from 'lucide-react'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAppStore } from '@/store/useAppStore'
 import { MobileMenuButton } from './Sidebar'
 
 export default function TopNav({ title }) {
   const { user, logout } = useAppStore()
+  const navigate = useNavigate()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
   const handleLogout = () => {
     logout()
+    setShowUserMenu(false)
+  }
+  
+  const handleNavigateToSettings = () => {
+    navigate('/settings')
     setShowUserMenu(false)
   }
 
@@ -147,11 +154,11 @@ export default function TopNav({ title }) {
                     <p className="text-xs text-gray-500">{user?.role}</p>
                   </div>
                   <div className="py-2">
-                    <button className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                    <Link to="/settings" onClick={() => setShowUserMenu(false)} className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                       <User size={16} />
                       Profile
-                    </button>
-                    <button className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                    </Link>
+                    <button onClick={handleNavigateToSettings} className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                       <Settings size={16} />
                       Settings
                     </button>

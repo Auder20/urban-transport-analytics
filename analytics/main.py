@@ -1,9 +1,11 @@
 import logging
 import asyncio
+import csv
+import io
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from datetime import datetime
 import time
 
@@ -220,6 +222,58 @@ async def predict_delay(
     except Exception as e:
         logger.error(f"Error predicting delay: {e}")
         raise HTTPException(status_code=500, detail="Failed to predict delay")
+
+
+@app.get("/export", tags=["export"])
+async def export_analytics(
+    type: str,
+    days: int,
+    format: str = "csv"
+):
+    """
+    Export analytics data in various formats
+    """
+    try:
+        # Get data based on type
+        if type == "performance":
+            data = await stats_service.get_performance_summary(days)
+        elif type == "delays":
+            data = await stats_service.get_delay_analysis(days)
+        elif type == "routes":
+            data = await stats_service.get_route_performance(days)
+        elif type == "anomalies":
+            data = await anomaly_detector.get_recent_anomalies(days)
+        else:
+            raise HTTPException(status_code=400, detail="Invalid export type")
+        
+        if format == "csv":
+            # Convert to CSV
+            output = io.StringIO()
+            if isinstance(data, dict) and 'data' in data:
+                # Handle list data
+                writer = csv.DictWriter(output, fieldnames=data['data'][0].keys() if data['data'] else [])
+                writer.writeheader()
+                writer.writerows(data['data'])
+            else:
+                # Handle dict data
+                writer = csv.DictWriter(output, fieldnames=data.keys())
+                writer.writeheader()
+                writer.writerow(data)
+            
+            output.seek(0)
+            
+            return StreamingResponse(
+                io.BytesIO(output.getvalue().encode('utf-8')),
+                media_type="text/csv",
+                headers={"Content-Disposition": f"attachment; filename={type}-report-{days}days.csv"}
+            )
+        else:
+            # Return JSON for other formats
+            return JSONResponse(content=data)
+            
+    except Exception as e:
+        logger.error(f"Error exporting data: {e}")
+        raise HTTPException(status_code=500, detail="Failed to export data")
 
 
 if __name__ == "__main__":

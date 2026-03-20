@@ -120,6 +120,18 @@ class GPSService {
       throw error;
     }
   }
+
+  async initializePubSub() {
+    const cacheService = require('./cache.service');
+    this.subscriber = await cacheService.subscribe(
+      'bus:location:update',
+      (data) => {
+        // Placeholder: en el futuro emitir via WebSocket a clientes conectados
+        // console.log('Bus location update:', data);
+      }
+    );
+    return this.subscriber;
+  }
 }
 
 module.exports = new GPSService();

@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { FileText, Download, Calendar, Filter, BarChart3, Clock, MapPin, AlertTriangle } from 'lucide-react'
 import { useDelays, useProblematicRoutes, usePeakHours, useAnomalies } from '@/hooks/useAnalytics'
+import api from '@/services/api'
 
 export default function Reports() {
   const [selectedReport, setSelectedReport] = useState('performance')
   const [dateRange, setDateRange] = useState('7days')
   const [format, setFormat] = useState('pdf')
+  const [isGenerating, setIsGenerating] = useState(false)
 
   const { data: delays } = useDelays({ days: parseInt(dateRange.replace('days', '')) })
   const { data: problematicRoutes } = useProblematicRoutes({ days: parseInt(dateRange.replace('days', '')) })
@@ -43,10 +45,26 @@ export default function Reports() {
     }
   ]
 
-  const generateReport = () => {
-    // Mock report generation
-    console.log(`Generating ${selectedReport} report for ${dateRange} in ${format} format`)
-    // In a real app, this would call an API endpoint to generate the report
+  const generateReport = async () => {
+    try {
+      setIsGenerating(true)
+      const response = await api.get('/analytics/export', {
+        params: { type: selectedReport, days: dateRange.replace('days', ''), format },
+        responseType: 'blob'
+      })
+      const url = URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${selectedReport}-report-${dateRange}.${format === 'pdf' ? 'pdf' : 'csv'}` 
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      alert('Error al generar el reporte. Intenta de nuevo.')
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   const downloadReport = (reportId) => {
@@ -129,9 +147,10 @@ export default function Reports() {
           <div className="flex items-end">
             <button
               onClick={generateReport}
+              disabled={isGenerating}
               className="btn btn-primary w-full"
             >
-              Generate Report
+              {isGenerating ? 'Generating...' : 'Generate Report'}
             </button>
           </div>
         </div>

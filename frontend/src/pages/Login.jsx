@@ -6,7 +6,7 @@ import api from '@/services/api'
 
 export default function Login() {
   const navigate = useNavigate()
-  const { setUser, setToken } = useAppStore()
+  const { setUser, setToken, setRefreshToken } = useAppStore()
   
   const [formData, setFormData] = useState({
     email: '',
@@ -37,6 +37,7 @@ export default function Login() {
       // Store user data and token
       setUser(response.data.user)
       setToken(response.data.accessToken)
+      setRefreshToken(response.data.refreshToken)
       
       // Redirect to dashboard
       navigate('/dashboard')

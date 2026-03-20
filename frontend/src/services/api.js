@@ -1,6 +1,43 @@
 import axios from 'axios'
 import { useAppStore } from '@/store/useAppStore'
 
+// Response interceptor setup function
+const setupResponseInterceptor = (instance) => {
+  instance.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+      const originalRequest = error.config
+      
+      if (error.response?.status === 401 && !originalRequest._retry) {
+        originalRequest._retry = true
+        
+        try {
+          const refreshToken = useAppStore.getState().refreshToken
+          if (refreshToken) {
+            const response = await axios.post('/api/auth/refresh', {
+              refreshToken
+            })
+            
+            const newToken = response.data.accessToken
+            useAppStore.getState().setToken(newToken)
+            
+            // Retry the original request with new token
+            originalRequest.headers.Authorization = `Bearer ${newToken}`
+            return instance(originalRequest)
+          }
+        } catch (refreshError) {
+          // Refresh failed, logout and redirect
+          useAppStore.getState().logout()
+          window.location.href = '/login'
+          return Promise.reject(refreshError)
+        }
+      }
+      
+      return Promise.reject(error)
+    }
+  )
+}
+
 // Create axios instance
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
@@ -25,17 +62,7 @@ api.interceptors.request.use(
 )
 
 // Response interceptor to handle errors
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
-      useAppStore.getState().logout()
-      window.location.href = '/login'
-    }
-    return Promise.reject(error)
-  }
-)
+setupResponseInterceptor(api)
 
 // Analytics API instance
 const analyticsApi = axios.create({
@@ -58,6 +85,9 @@ analyticsApi.interceptors.request.use(
     return Promise.reject(error)
   }
 )
+
+// Apply response interceptor to analytics API as well
+setupResponseInterceptor(analyticsApi)
 
 // Helper functions for common API patterns
 const apiRequest = async (method, url, data = null, config = {}) => {

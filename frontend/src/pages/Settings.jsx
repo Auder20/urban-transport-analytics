@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { User, Bell, Shield, Palette, Database, HelpCircle } from 'lucide-react'
+import { useAppStore } from '@/store/useAppStore'
+import api from '@/services/api'
 
 export default function Settings() {
+  const { user, theme, setTheme } = useAppStore()
   const [activeTab, setActiveTab] = useState('profile')
   const [notifications, setNotifications] = useState({
     emailAlerts: true,
@@ -10,11 +13,27 @@ export default function Settings() {
     criticalAlerts: true
   })
   const [preferences, setPreferences] = useState({
-    theme: 'light',
     language: 'en',
     timezone: 'America/Bogota',
     autoRefresh: true
   })
+  
+  // Profile form state
+  const [profileForm, setProfileForm] = useState({
+    fullName: user?.fullName || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    bio: user?.bio || ''
+  })
+  
+  // Password change state
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  })
+  
+  const [passwordError, setPasswordError] = useState('')
 
   const tabs = [
     { id: 'profile', name: 'Profile', icon: User },
@@ -37,6 +56,76 @@ export default function Settings() {
       ...prev,
       [key]: value
     }))
+  }
+  
+  const handleProfileChange = (key, value) => {
+    setProfileForm(prev => ({
+      ...prev,
+      [key]: value
+    }))
+  }
+  
+  const handlePasswordChange = (key, value) => {
+    setPasswordForm(prev => ({
+      ...prev,
+      [key]: value
+    }))
+    setPasswordError('')
+  }
+  
+  const handleSaveProfile = async () => {
+    try {
+      await api.put('/api/auth/profile', profileForm)
+      alert('Profile updated successfully!')
+    } catch (error) {
+      alert('Error updating profile. Please try again.')
+    }
+  }
+  
+  const handleUpdatePassword = async () => {
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('New passwords do not match')
+      return
+    }
+    
+    try {
+      await api.put('/api/auth/password', {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword
+      })
+      alert('Password updated successfully!')
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+    } catch (error) {
+      alert('Error updating password. Please check your current password and try again.')
+    }
+  }
+  
+  const handleExportData = async () => {
+    try {
+      const response = await api.get('/api/auth/export-data')
+      const dataStr = JSON.stringify(response.data, null, 2)
+      const dataBlob = new Blob([dataStr], { type: 'application/json' })
+      const url = URL.createObjectURL(dataBlob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'user-data.json'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      alert('Error exporting data. Please try again.')
+    }
+  }
+  
+  const handleDeleteAccount = () => {
+    const confirmation = window.confirm(
+      '¿Estás seguro? Esta acción es irreversible. Escribe DELETE para confirmar.'
+    )
+    if (confirmation) {
+      // TODO: Implement account deletion API call
+      alert('Account deletion feature coming soon')
+    }
   }
 
   return (
@@ -84,7 +173,8 @@ export default function Settings() {
                       <label className="label">Full Name</label>
                       <input
                         type="text"
-                        defaultValue="John Doe"
+                        value={profileForm.fullName}
+                        onChange={(e) => handleProfileChange('fullName', e.target.value)}
                         className="input"
                       />
                     </div>
@@ -92,7 +182,8 @@ export default function Settings() {
                       <label className="label">Email</label>
                       <input
                         type="email"
-                        defaultValue="john.doe@example.com"
+                        value={profileForm.email}
+                        onChange={(e) => handleProfileChange('email', e.target.value)}
                         className="input"
                       />
                     </div>
@@ -100,7 +191,8 @@ export default function Settings() {
                       <label className="label">Phone</label>
                       <input
                         type="tel"
-                        defaultValue="+57 1 234 5678"
+                        value={profileForm.phone}
+                        onChange={(e) => handleProfileChange('phone', e.target.value)}
                         className="input"
                       />
                     </div>
@@ -108,7 +200,7 @@ export default function Settings() {
                       <label className="label">Role</label>
                       <input
                         type="text"
-                        defaultValue="Administrator"
+                        value={user?.role || 'Administrator'}
                         className="input"
                         disabled
                       />
@@ -118,13 +210,14 @@ export default function Settings() {
                     <label className="label">Bio</label>
                     <textarea
                       rows={3}
-                      defaultValue="Transport system analyst with 5+ years of experience."
+                      value={profileForm.bio}
+                      onChange={(e) => handleProfileChange('bio', e.target.value)}
                       className="input"
                     />
                   </div>
                 </div>
                 <div className="mt-6 flex justify-end">
-                  <button className="btn btn-primary">Save Changes</button>
+                  <button onClick={handleSaveProfile} className="btn btn-primary">Save Changes</button>
                 </div>
               </div>
             </div>
@@ -224,18 +317,36 @@ export default function Settings() {
                 <div className="space-y-4">
                   <div>
                     <label className="label">Current Password</label>
-                    <input type="password" className="input" />
+                    <input 
+                      type="password" 
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
+                      className="input" 
+                    />
                   </div>
                   <div>
                     <label className="label">New Password</label>
-                    <input type="password" className="input" />
+                    <input 
+                      type="password" 
+                      value={passwordForm.newPassword}
+                      onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
+                      className="input" 
+                    />
                   </div>
                   <div>
                     <label className="label">Confirm New Password</label>
-                    <input type="password" className="input" />
+                    <input 
+                      type="password" 
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
+                      className="input" 
+                    />
                   </div>
+                  {passwordError && (
+                    <div className="text-danger-600 text-sm">{passwordError}</div>
+                  )}
                   <div className="pt-4">
-                    <button className="btn btn-primary">Update Password</button>
+                    <button onClick={handleUpdatePassword} className="btn btn-primary">Update Password</button>
                   </div>
                 </div>
               </div>
@@ -262,8 +373,8 @@ export default function Settings() {
                   <div>
                     <label className="label">Theme</label>
                     <select
-                      value={preferences.theme}
-                      onChange={(e) => handlePreferenceChange('theme', e.target.value)}
+                      value={theme}
+                      onChange={(e) => setTheme(e.target.value)}
                       className="input"
                     >
                       <option value="light">Light</option>
@@ -333,7 +444,7 @@ export default function Settings() {
                       <p className="font-medium">Export Your Data</p>
                       <p className="text-sm text-gray-500">Download all your personal data</p>
                     </div>
-                    <button className="btn btn-secondary">Export</button>
+                    <button onClick={handleExportData} className="btn btn-secondary">Export</button>
                   </div>
                   
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -341,7 +452,7 @@ export default function Settings() {
                       <p className="font-medium">Delete Account</p>
                       <p className="text-sm text-gray-500">Permanently delete your account and data</p>
                     </div>
-                    <button className="btn btn-danger">Delete</button>
+                    <button onClick={handleDeleteAccount} className="btn btn-danger">Delete</button>
                   </div>
                 </div>
               </div>

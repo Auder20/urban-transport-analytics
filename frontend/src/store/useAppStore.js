@@ -7,11 +7,15 @@ const useAppStore = create(
       // User state
       user: null,
       token: null,
+      refreshToken: null,
       
       // UI state
+      theme: 'light',
       sidebarOpen: true,
       selectedRoute: null,
       selectedStation: null,
+      filterStatus: 'all',
+      filterOccupancy: 'all',
       
       // Map state
       mapCenter: [4.7110, -74.0721], // Bogotá coordinates
@@ -20,13 +24,17 @@ const useAppStore = create(
       // Actions
       setUser: (user) => set({ user }),
       setToken: (token) => set({ token }),
-      logout: () => set({ user: null, token: null }),
+      setTheme: (theme) => set({ theme }),
+      setRefreshToken: (token) => set({ refreshToken: token }),
+      logout: () => set({ user: null, token: null, refreshToken: null }),
       
       toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
       
       setSelectedRoute: (route) => set({ selectedRoute: route }),
       setSelectedStation: (station) => set({ selectedStation: station }),
+      setFilterStatus: (status) => set({ filterStatus: status }),
+      setFilterOccupancy: (occupancy) => set({ filterOccupancy: occupancy }),
       
       setMapCenter: (center) => set({ mapCenter: center }),
       setMapZoom: (zoom) => set({ mapZoom: zoom }),
@@ -53,7 +61,13 @@ const useAppStore = create(
       partialize: (state) => ({
         user: state.user,
         token: state.token,
+        refreshToken: state.refreshToken,
+        theme: state.theme,
         sidebarOpen: state.sidebarOpen,
+        selectedRoute: state.selectedRoute,
+        selectedStation: state.selectedStation,
+        filterStatus: state.filterStatus,
+        filterOccupancy: state.filterOccupancy,
         mapCenter: state.mapCenter,
         mapZoom: state.mapZoom,
       }),

@@ -9,11 +9,17 @@ import { Filter, Layers, Maximize2, Minimize2 } from 'lucide-react'
 export default function LiveMap() {
   const { buses, isLoading: busesLoading } = useBusLocations(5000)
   const { data: routesData, isLoading: routesLoading } = useRoutes(1, 100)
-  const { selectedRoute, setSelectedRoute, sidebarOpen } = useAppStore()
+  const { 
+    selectedRoute, 
+    setSelectedRoute, 
+    sidebarOpen,
+    filterStatus,
+    filterOccupancy,
+    setFilterStatus,
+    setFilterOccupancy
+  } = useAppStore()
   const [showFilters, setShowFilters] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const [filterStatus, setFilterStatus] = useState('all')
-  const [filterOccupancy, setFilterOccupancy] = useState('all')
 
   const routes = routesData?.routes || []
   const activeBuses = buses?.filter(bus => bus.status === 'active') || []

@@ -13,6 +13,9 @@ router.post('/refresh', authLimiter, asyncHandler(authController.refreshToken));
 // Protected routes
 router.post('/logout', authMiddleware, asyncHandler(authController.logout));
 router.get('/me', authMiddleware, asyncHandler(authController.getProfile));
+router.put('/profile', authMiddleware, asyncHandler(authController.updateProfile));
+router.put('/password', authMiddleware, asyncHandler(authController.updatePassword));
+router.get('/export-data', authMiddleware, asyncHandler(authController.exportData));
 
 // Admin route for user registration
 router.post('/register', authLimiter, asyncHandler(authController.register));
