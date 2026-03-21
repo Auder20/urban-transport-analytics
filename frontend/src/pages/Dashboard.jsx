@@ -63,15 +63,15 @@ export default function Dashboard() {
         {/* Left column - Charts */}
         <div className="lg:col-span-2 space-y-6">
           {/* Delay Chart */}
-          <DelayChart data={delays?.delays} />
+          <DelayChart data={delays?.delays} isLoading={delaysLoading} />
 
           {/* Route Performance */}
-          <RoutePerformance data={problematicRoutes?.routes} />
+          <RoutePerformance data={problematicRoutes?.routes} isLoading={routesLoading} />
 
           {/* Peak Hours */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <PeakHoursChart data={peakHours?.peakHours} />
-            <PassengerFlowChart data={peakHours?.peakHours} />
+            <PeakHoursChart data={peakHours?.peakHours} isLoading={peakHoursLoading} />
+            <PassengerFlowChart data={peakHours?.peakHours} isLoading={peakHoursLoading} />
           </div>
         </div>
 
@@ -100,7 +100,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Peak hour trips</span>
                 <span className="font-medium">
-                  {peakHours?.peakHours?.filter(h => h.hour >= 7 && h.hour <= 9 || h.hour >= 17 && h.hour <= 19)
+                  {peakHours?.peakHours?.filter(h => (h.hour >= 7 && h.hour <= 9) || (h.hour >= 17 && h.hour <= 19))
                     .reduce((sum, h) => sum + (h.tripCount || 0), 0) || 0}
                 </span>
               </div>

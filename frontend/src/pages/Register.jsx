@@ -215,7 +215,7 @@ export default function Register() {
         {/* Footer */}
         <div className="text-center">
           <p className="text-sm text-gray-600">
-            © 2024 Urban Transport Analytics. All rights reserved.
+            © {new Date().getFullYear()} Urban Transport Analytics. All rights reserved.
           </p>
         </div>
       </div>

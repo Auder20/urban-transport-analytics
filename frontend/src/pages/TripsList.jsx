@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import PageLayout from '@/components/Layout/PageLayout'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useAllTrips } from '@/hooks/useTrips'
 import { Plus, Search, Filter, Edit, Trash2, Calendar, Clock, Route } from 'lucide-react'
@@ -15,7 +14,7 @@ export default function TripsList() {
   const [statusFilter, setStatusFilter] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const { data, isLoading: loading, isError } = useAllTrips(page, 20, {
+  const { data, isLoading: loading, isError, refetch } = useAllTrips(page, 20, {
     status: statusFilter || undefined,
     from: dateFrom || undefined,
     to: dateTo || undefined,
@@ -26,8 +25,7 @@ export default function TripsList() {
   const filteredTrips = trips
 
   return (
-    <PageLayout title="Trips Management">
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
@@ -141,8 +139,11 @@ export default function TripsList() {
         {/* Trips Content */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           {isError && (
-            <div className="p-8 text-center">
-              <p className="text-red-600">Error loading trips. Please try again.</p>
+            <div className="p-8 text-center space-y-3">
+              <p className="text-danger-600">Error loading trips. Check your connection.</p>
+              <button onClick={() => refetch()} className="btn btn-secondary">
+                Retry
+              </button>
             </div>
           )}
           {loading ? (
@@ -204,7 +205,7 @@ export default function TripsList() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredTrips.map((trip) => (
-                    <tr key={trip.id} className="hover:bg-gray-50">
+                    <tr key={trip.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{trip.id?.slice(0, 8)}...</div>
                         <div className="text-sm text-gray-500">{trip.bus?.plateNumber}</div>
@@ -294,7 +295,6 @@ export default function TripsList() {
             </div>
           )}
         </div>
-      </div>
-    </PageLayout>
+    </div>
   )
 }

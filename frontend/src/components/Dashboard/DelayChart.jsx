@@ -1,7 +1,16 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { format } from 'date-fns'
+import { CHART_COLORS, SERIES_COLORS } from '@/constants/chartColors'
 
-export function DelayChart({ data, routes = [], height = 300 }) {
+export function DelayChart({ data, routes = [], height = 300, isLoading = false }) {
+  if (isLoading) {
+    return (
+      <div className="card p-6 animate-pulse">
+        <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-48 mb-6"></div>
+        <div className="bg-gray-100 dark:bg-gray-700 rounded" style={{ height }}></div>
+      </div>
+    )
+  }
   if (!data || data.length === 0) {
     return (
       <div className="card p-6">
@@ -25,12 +34,12 @@ export function DelayChart({ data, routes = [], height = 300 }) {
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-medium">{`${label}:00`}</p>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 p-3 rounded-lg shadow-lg">
+          <p className="font-medium text-gray-900 dark:text-gray-100">{`${label}:00`}</p>
           <p className="text-sm text-primary-600">
             Avg Delay: {data.delay} min
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             Trips: {data.trips}
           </p>
         </div>
@@ -50,7 +59,7 @@ export function DelayChart({ data, routes = [], height = 300 }) {
       </div>
       
       <ResponsiveContainer width="100%" height={height}>
-        <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+        <LineChart data={chartData} margin={{ top: 5, right: 30, left: 50, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis 
             dataKey="hour" 
@@ -67,9 +76,9 @@ export function DelayChart({ data, routes = [], height = 300 }) {
           <Line 
             type="monotone" 
             dataKey="delay" 
-            stroke="#3b82f6" 
+            stroke={CHART_COLORS.primary}
             strokeWidth={2}
-            dot={{ fill: '#3b82f6', r: 4 }}
+            dot={{ fill: CHART_COLORS.primary, r: 4 }}
             activeDot={{ r: 6 }}
           />
         </LineChart>
@@ -106,13 +115,13 @@ export function RouteDelayChart({ data, height = 300 }) {
 
   // Get unique route codes for lines
   const routeCodes = [...new Set(data.map(item => item.route_code))]
-  const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
+  const colors = SERIES_COLORS
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-medium mb-2">{`${label}:00`}</p>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 p-3 rounded-lg shadow-lg">
+          <p className="font-medium text-gray-900 dark:text-gray-100 mb-2">{`${label}:00`}</p>
           {payload.map((entry, index) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
               {entry.name}: {entry.value} min
@@ -142,7 +151,7 @@ export function RouteDelayChart({ data, height = 300 }) {
       </div>
       
       <ResponsiveContainer width="100%" height={height}>
-        <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+        <LineChart data={chartData} margin={{ top: 5, right: 30, left: 50, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis 
             dataKey="hour" 

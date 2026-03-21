@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Bell, Search, User, Settings, LogOut, Bus, Route, MapPin } from 'lucide-react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAppStore } from '@/store/useAppStore'
@@ -16,7 +16,7 @@ export default function TopNav({ title }) {
   const [searchResults, setSearchResults] = useState({ buses: [], routes: [], stations: [] })
   const [showSearchDropdown, setShowSearchDropdown] = useState(false)
   const [searchLoading, setSearchLoading] = useState(false)
-  const [searchTimeout, setSearchTimeout] = useState(null)
+  const searchTimeoutRef = useRef(null)
 
   const notifications = notificationsData?.notifications || []
   const unreadCount = notificationsData?.unreadCount || 0
@@ -47,17 +47,12 @@ export default function TopNav({ title }) {
     const query = e.target.value
     setSearchQuery(query)
 
-    // Clear existing timeout
-    if (searchTimeout) {
-      clearTimeout(searchTimeout)
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
     }
-
-    // Set new timeout for 300ms debounce
-    const timeout = setTimeout(() => {
+    searchTimeoutRef.current = setTimeout(() => {
       performSearch(query)
     }, 300)
-
-    setSearchTimeout(timeout)
   }
 
   // Navigate to search result
@@ -127,7 +122,7 @@ export default function TopNav({ title }) {
 
                 {/* Search dropdown */}
                 {showSearchDropdown && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-80 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 max-h-80 overflow-y-auto">
                     {searchLoading ? (
                       <div className="p-4 text-center text-sm text-gray-500">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600 mx-auto mb-2"></div>
@@ -138,12 +133,12 @@ export default function TopNav({ title }) {
                         {/* Buses section */}
                         {searchResults.buses.length > 0 && (
                           <div className="p-2">
-                            <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Buses</div>
+                            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Buses</div>
                             {searchResults.buses.map((bus) => (
                               <button
                                 key={bus.id}
                                 onClick={() => handleNavigateToResult('buses', bus)}
-                                className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-100 flex items-center gap-2"
+                                className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex items-center gap-2"
                               >
                                 <Bus size={14} className="text-gray-400" />
                                 <span className="font-medium">{bus.name}</span>
@@ -162,12 +157,12 @@ export default function TopNav({ title }) {
                         {/* Routes section */}
                         {searchResults.routes.length > 0 && (
                           <div className="p-2">
-                            <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Routes</div>
+                            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Routes</div>
                             {searchResults.routes.map((route) => (
                               <button
                                 key={route.id}
                                 onClick={() => handleNavigateToResult('routes', route)}
-                                className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-100 flex items-center gap-2"
+                                className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex items-center gap-2"
                               >
                                 <Route size={14} className="text-gray-400" />
                                 <div>
@@ -182,12 +177,12 @@ export default function TopNav({ title }) {
                         {/* Stations section */}
                         {searchResults.stations.length > 0 && (
                           <div className="p-2">
-                            <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Stations</div>
+                            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Stations</div>
                             {searchResults.stations.map((station) => (
                               <button
                                 key={station.id}
                                 onClick={() => handleNavigateToResult('stations', station)}
-                                className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-100 flex items-center gap-2"
+                                className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex items-center gap-2"
                               >
                                 <MapPin size={14} className="text-gray-400" />
                                 <div>
@@ -203,7 +198,7 @@ export default function TopNav({ title }) {
                         {searchResults.buses.length === 0 && 
                          searchResults.routes.length === 0 && 
                          searchResults.stations.length === 0 && (
-                          <div className="p-4 text-center text-sm text-gray-500">
+                          <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
                             No results found for "{searchQuery}"
                           </div>
                         )}

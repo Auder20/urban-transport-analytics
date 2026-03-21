@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect } from 'react'
-import PageLayout from '@/components/Layout/PageLayout'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useAllBuses, useDeleteBus } from '@/hooks/useBuses'
 import { Plus, Search, Filter, Edit, Trash2, Eye } from 'lucide-react'
@@ -19,7 +18,7 @@ export default function BusesList() {
 
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('')
-  const { data, isLoading: loading, isError } = useAllBuses(page, 20, {
+  const { data, isLoading: loading, isError, refetch } = useAllBuses(page, 20, {
     search: debouncedSearch || undefined,
     status: statusFilter || undefined,
   })
@@ -39,8 +38,7 @@ export default function BusesList() {
   const filteredBuses = buses
 
   return (
-    <PageLayout title="Buses Management">
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
@@ -117,8 +115,11 @@ export default function BusesList() {
         {/* Buses Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           {isError && (
-            <div className="p-8 text-center">
-              <p className="text-red-600">Error loading buses. Please try again.</p>
+            <div className="p-8 text-center space-y-3">
+              <p className="text-danger-600">Error loading buses. Check your connection.</p>
+              <button onClick={() => refetch()} className="btn btn-secondary">
+                Retry
+              </button>
             </div>
           )}
           {loading ? (
@@ -169,7 +170,7 @@ export default function BusesList() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredBuses.map((bus) => (
-                    <tr key={bus.id} className="hover:bg-gray-50">
+                    <tr key={bus.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="text-sm font-medium text-gray-900">{bus.plateNumber}</div>
@@ -239,7 +240,6 @@ export default function BusesList() {
             </div>
           )}
         </div>
-      </div>
-    </PageLayout>
+    </div>
   )
 }

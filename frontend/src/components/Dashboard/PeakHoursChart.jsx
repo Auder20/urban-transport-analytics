@@ -1,7 +1,16 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
 import { Clock, TrendingUp, Users } from 'lucide-react'
+import { CHART_COLORS } from '@/constants/chartColors'
 
-export function PeakHoursChart({ data = [], height = 300 }) {
+export function PeakHoursChart({ data = [], height = 300, isLoading = false }) {
+  if (isLoading) {
+    return (
+      <div className="card p-6 animate-pulse">
+        <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-44 mb-6"></div>
+        <div className="bg-gray-100 dark:bg-gray-700 rounded" style={{ height }}></div>
+      </div>
+    )
+  }
   if (!data || data.length === 0) {
     return (
       <div className="card p-6">
@@ -20,15 +29,15 @@ export function PeakHoursChart({ data = [], height = 300 }) {
     trips: hour.trip_count || 0,
     avgDelay: parseFloat(hour.average_delay || 0).toFixed(1),
     passengers: parseFloat(hour.average_passengers || 0).toFixed(1),
-    isPeakHour: hour.hour >= 7 && hour.hour <= 9 || hour.hour >= 17 && hour.hour <= 19
+    isPeakHour: (hour.hour >= 7 && hour.hour <= 9) || (hour.hour >= 17 && hour.hour <= 19)
   }))
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-medium mb-2">{label}</p>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 p-3 rounded-lg shadow-lg">
+          <p className="font-medium text-gray-900 dark:text-gray-100 mb-2">{label}</p>
           <p className="text-sm text-blue-600">
             Trips: {data.trips}
           </p>
@@ -90,13 +99,13 @@ export function PeakHoursChart({ data = [], height = 300 }) {
           <Bar 
             yAxisId="left"
             dataKey="trips" 
-            fill="#3b82f6"
+            fill={CHART_COLORS.primary}
             radius={[4, 4, 0, 0]}
           />
           <Bar 
             yAxisId="right"
             dataKey="avgDelay" 
-            fill="#f59e0b"
+            fill={CHART_COLORS.warning}
             radius={[4, 4, 0, 0]}
           />
         </BarChart>
@@ -105,7 +114,15 @@ export function PeakHoursChart({ data = [], height = 300 }) {
   )
 }
 
-export function PassengerFlowChart({ data = [], height = 300 }) {
+export function PassengerFlowChart({ data = [], height = 300, isLoading = false }) {
+  if (isLoading) {
+    return (
+      <div className="card p-6 animate-pulse">
+        <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-52 mb-6"></div>
+        <div className="bg-gray-100 dark:bg-gray-700 rounded" style={{ height }}></div>
+      </div>
+    )
+  }
   if (!data || data.length === 0) {
     return (
       <div className="card p-6">
@@ -122,15 +139,15 @@ export function PassengerFlowChart({ data = [], height = 300 }) {
     hour: `${hour.hour}:00`,
     passengers: parseFloat(hour.average_passengers || 0),
     trips: hour.trip_count || 0,
-    isPeakHour: hour.hour >= 7 && hour.hour <= 9 || hour.hour >= 17 && hour.hour <= 19
+    isPeakHour: (hour.hour >= 7 && hour.hour <= 9) || (hour.hour >= 17 && hour.hour <= 19)
   }))
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-medium mb-2">{label}</p>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 p-3 rounded-lg shadow-lg">
+          <p className="font-medium text-gray-900 dark:text-gray-100 mb-2">{label}</p>
           <p className="text-sm text-purple-600">
             Avg Passengers: {data.passengers}
           </p>
@@ -175,8 +192,8 @@ export function PassengerFlowChart({ data = [], height = 300 }) {
           <Area 
             type="monotone"
             dataKey="passengers" 
-            stroke="#8b5cf6"
-            fill="#8b5cf6"
+            stroke={CHART_COLORS.purple}
+            fill={CHART_COLORS.purple}
             fillOpacity={0.3}
             strokeWidth={2}
           />
@@ -200,11 +217,11 @@ export function PeakHoursSummary({ data = [] }) {
 
   // Calculate peak hours statistics
   const peakHours = data.filter(hour => 
-    hour.hour >= 7 && hour.hour <= 9 || hour.hour >= 17 && hour.hour <= 19
+    (hour.hour >= 7 && hour.hour <= 9) || (hour.hour >= 17 && hour.hour <= 19)
   )
   
   const offPeakHours = data.filter(hour => 
-    !(hour.hour >= 7 && hour.hour <= 9 || hour.hour >= 17 && hour.hour <= 19)
+    !((hour.hour >= 7 && hour.hour <= 9) || (hour.hour >= 17 && hour.hour <= 19))
   )
 
   const peakStats = {

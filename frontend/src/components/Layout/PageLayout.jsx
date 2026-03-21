@@ -4,23 +4,13 @@ import TopNav from './TopNav'
 
 export default function PageLayout() {
   return (
-    <div className="min-h-screen bg-gray-50 lg:flex">
-      {/* Sidebar - hidden on mobile, visible on desktop */}
-      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0">
-        <Sidebar />
-      </div>
-      
-      {/* Main content */}
-      <div className="lg:pl-64 flex flex-col flex-1">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 lg:flex">
+      <Sidebar />
+      <div className="lg:pl-64 flex flex-col flex-1 min-w-0">
         <TopNav />
         <main className="flex-1 p-6">
           <Outlet />
         </main>
-      </div>
-      
-      {/* Mobile sidebar overlay */}
-      <div className="lg:hidden">
-        <Sidebar />
       </div>
     </div>
   )

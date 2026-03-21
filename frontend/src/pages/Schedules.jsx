@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import PageLayout from '@/components/Layout/PageLayout'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useAllSchedules, useDeactivateSchedule } from '@/hooks/useSchedules'
 import { Plus, Search, Filter, Edit, Trash2, Clock, Calendar, Users } from 'lucide-react'
@@ -11,7 +10,7 @@ export default function Schedules() {
   const [showFilters, setShowFilters] = useState(false)
 
   const [routeFilter, setRouteFilter] = useState('')
-  const { data, isLoading: loading, isError } = useAllSchedules({
+  const { data, isLoading: loading, isError, refetch } = useAllSchedules({
     route_id: routeFilter || undefined,
   })
   const schedules = data?.schedules || []
@@ -30,8 +29,7 @@ export default function Schedules() {
   const filteredSchedules = schedules
 
   return (
-    <PageLayout title="Schedules Management">
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
@@ -118,8 +116,11 @@ export default function Schedules() {
         {/* Schedules Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           {isError && (
-            <div className="p-8 text-center">
-              <p className="text-red-600">Error loading schedules. Please try again.</p>
+            <div className="p-8 text-center space-y-3">
+              <p className="text-danger-600">Error loading schedules. Check your connection.</p>
+              <button onClick={() => refetch()} className="btn btn-secondary">
+                Retry
+              </button>
             </div>
           )}
           {loading ? (
@@ -170,7 +171,7 @@ export default function Schedules() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredSchedules.map((schedule) => (
-                    <tr key={schedule.id} className="hover:bg-gray-50">
+                    <tr key={schedule.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{schedule.route?.name}</div>
                         <div className="text-sm text-gray-500">{schedule.route?.code}</div>
@@ -232,7 +233,6 @@ export default function Schedules() {
             </div>
           )}
         </div>
-      </div>
-    </PageLayout>
+    </div>
   )
 }

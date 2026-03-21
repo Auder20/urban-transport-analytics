@@ -54,7 +54,7 @@ export function KPICard({
       <p className="text-sm text-gray-500 font-medium mb-2">{title}</p>
       <div className="flex items-end gap-2 mb-3">
         <span className="text-3xl font-bold text-gray-800">
-          {typeof value === 'number' ? value.toLocaleString() : value}
+          {typeof value === 'number' ? value.toLocaleString('es-CO') : value}
         </span>
         {unit && (
           <span className="text-gray-400 text-sm mb-1">{unit}</span>
@@ -144,7 +144,7 @@ export function KPICardSimple({
       
       <div className="flex items-end gap-2">
         <span className={clsx('text-3xl font-bold', selectedColor.text)}>
-          {typeof value === 'number' ? value.toLocaleString() : value}
+          {typeof value === 'number' ? value.toLocaleString('es-CO') : value}
         </span>
         {unit && (
           <span className="text-gray-400 text-sm mb-1">{unit}</span>

@@ -18,14 +18,6 @@ import { useAppStore } from '@/store/useAppStore'
 import { usePermissions } from '@/hooks/usePermissions'
 import { clsx } from 'clsx'
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Live Map', href: '/map', icon: Map },
-  { name: 'Routes', href: '/routes', icon: Route },
-  { name: 'Reports', href: '/reports', icon: FileText },
-  { name: 'Settings', href: '/settings', icon: Settings },
-]
-
 export default function Sidebar() {
   const { sidebarOpen, setSidebarOpen, user, logout } = useAppStore()
   const { canEdit, canViewAnalytics } = usePermissions()
@@ -56,8 +48,6 @@ export default function Sidebar() {
     { name: 'Schedules', href: '/schedules', icon: Calendar },
   ]
 
-  // Filter navigation based on permissions
-  const navigation = baseNavigation
   const managementItems = canEdit ? managementNavigation : []
   const scheduleItems = canEdit ? schedulesNavigation : []
 
@@ -118,7 +108,7 @@ export default function Sidebar() {
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-4 space-y-1">
-            {navigation.map((item) => {
+            {baseNavigation.map((item) => {
               const isActive = location.pathname === item.href
               return (
                 <NavLink

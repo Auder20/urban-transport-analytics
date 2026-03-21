@@ -1,7 +1,16 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { AlertTriangle, TrendingUp, Clock } from 'lucide-react'
+import { CHART_COLORS, DELAY_COLORS } from '@/constants/chartColors'
 
-export function RoutePerformance({ data = [], height = 400 }) {
+export function RoutePerformance({ data = [], height = 400, isLoading = false }) {
+  if (isLoading) {
+    return (
+      <div className="card p-6 animate-pulse">
+        <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-56 mb-6"></div>
+        <div className="bg-gray-100 dark:bg-gray-700 rounded" style={{ height }}></div>
+      </div>
+    )
+  }
   if (!data || data.length === 0) {
     return (
       <div className="card p-6">
@@ -28,15 +37,15 @@ export function RoutePerformance({ data = [], height = 400 }) {
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-medium mb-2">{label}</p>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 p-3 rounded-lg shadow-lg">
+          <p className="font-medium text-gray-900 dark:text-gray-100 mb-2">{label}</p>
           <p className="text-sm text-orange-600">
             Avg Delay: {data.avgDelay} min
           </p>
           <p className="text-sm text-green-600">
             On Time: {data.onTime}%
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             Total Trips: {data.totalTrips}
           </p>
         </div>
@@ -56,7 +65,7 @@ export function RoutePerformance({ data = [], height = 400 }) {
       </div>
 
       <ResponsiveContainer width="100%" height={height}>
-        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 50, bottom: 60 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis 
             dataKey="name" 
@@ -74,7 +83,7 @@ export function RoutePerformance({ data = [], height = 400 }) {
           <Tooltip content={<CustomTooltip />} />
           <Bar 
             dataKey="avgDelay" 
-            fill="#f59e0b"
+            fill={CHART_COLORS.warning}
             radius={[4, 4, 0, 0]}
           />
         </BarChart>
@@ -150,8 +159,8 @@ export function RoutePerformanceTable({ data = [], limit = 10 }) {
                         className="h-2 rounded-full"
                         style={{
                           width: `${Math.min(100, route.on_time_percentage || 0)}%`,
-                          backgroundColor: route.on_time_percentage >= 80 ? '#10b981' : 
-                                         route.on_time_percentage >= 60 ? '#f59e0b' : '#ef4444'
+                          backgroundColor: route.on_time_percentage >= 80 ? DELAY_COLORS.good :
+                                         route.on_time_percentage >= 60 ? DELAY_COLORS.warning : DELAY_COLORS.critical
                         }}
                       ></div>
                     </div>

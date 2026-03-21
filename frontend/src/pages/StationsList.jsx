@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import PageLayout from '@/components/Layout/PageLayout'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useAllStations } from '@/hooks/useStations'
 import { Plus, Search, Filter, Edit, Trash2, MapPin } from 'lucide-react'
@@ -12,7 +11,7 @@ export default function StationsList() {
 
   const [page, setPage] = useState(1)
   const [typeFilter, setTypeFilter] = useState('')
-  const { data, isLoading: loading, isError } = useAllStations(page, 20, {
+  const { data, isLoading: loading, isError, refetch } = useAllStations(page, 20, {
     type: typeFilter || undefined,
   })
   const stations = data?.stations || []
@@ -21,8 +20,7 @@ export default function StationsList() {
   const filteredStations = stations
 
   return (
-    <PageLayout title="Stations Management">
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
@@ -101,8 +99,11 @@ export default function StationsList() {
         {/* Stations Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           {isError && (
-            <div className="p-8 text-center">
-              <p className="text-red-600">Error loading stations. Please try again.</p>
+            <div className="p-8 text-center space-y-3">
+              <p className="text-danger-600">Error loading stations. Check your connection.</p>
+              <button onClick={() => refetch()} className="btn btn-secondary">
+                Retry
+              </button>
             </div>
           )}
           {loading ? (
@@ -153,7 +154,7 @@ export default function StationsList() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredStations.map((station) => (
-                    <tr key={station.id} className="hover:bg-gray-50">
+                    <tr key={station.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <MapPin className="text-gray-400 mr-2" size={16} />
@@ -233,7 +234,6 @@ export default function StationsList() {
             </div>
           )}
         </div>
-      </div>
-    </PageLayout>
+    </div>
   )
 }
