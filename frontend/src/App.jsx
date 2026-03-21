@@ -60,7 +60,7 @@ function App() {
           <Route path="routes" element={<RoutesList />} />
           <Route path="routes/:routeId" element={<RouteAnalysis />} />
           <Route path="reports" element={<Reports />} />
-          <Route path="analytics" element={<Analytics />} />
+          <Route path="ml-insights" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />
           <Route path="buses" element={<BusesList />} />
           <Route path="stations" element={<StationsList />} />

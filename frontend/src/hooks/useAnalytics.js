@@ -1,12 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { analyticsService } from '@/services/analyticsService'
+import { useAppStore } from '@/store/useAppStore'
 
 export function useKPIS() {
+  const { autoRefresh } = useAppStore()
   return useQuery({
     queryKey: ['analytics', 'kpis'],
     queryFn: analyticsService.getKPIS,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    refetchInterval: 2 * 60 * 1000, // Auto-refresh every 2 minutes
+    staleTime: 2 * 60 * 1000,
+    refetchInterval: autoRefresh ? 2 * 60 * 1000 : false,
   })
 }
 
@@ -27,11 +29,12 @@ export function useDelays(params = {}) {
 }
 
 export function useHeatmap(params = {}) {
+  const { autoRefresh } = useAppStore()
   return useQuery({
     queryKey: ['analytics', 'heatmap', params],
     queryFn: () => analyticsService.getHeatmap(params),
-    staleTime: 60 * 1000, // 1 minute
-    refetchInterval: 60 * 1000, // Auto-refresh every minute
+    staleTime: 60 * 1000,
+    refetchInterval: autoRefresh ? 60 * 1000 : false,
   })
 }
 

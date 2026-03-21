@@ -6,7 +6,7 @@ import api from '@/services/api'
 import toast from 'react-hot-toast'
 
 export default function Settings() {
-  const { user, theme, setTheme, logout } = useAppStore()
+  const { user, theme, setTheme, language, setLanguage, timezone, setTimezone, autoRefresh, setAutoRefresh, logout } = useAppStore()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('profile')
   const [notifications, setNotifications] = useState({
@@ -14,11 +14,6 @@ export default function Settings() {
     pushNotifications: false,
     weeklyReports: true,
     criticalAlerts: true
-  })
-  const [preferences, setPreferences] = useState({
-    language: 'en',
-    timezone: 'America/Bogota',
-    autoRefresh: true
   })
   
   // Profile form state
@@ -54,12 +49,6 @@ export default function Settings() {
     }))
   }
 
-  const handlePreferenceChange = (key, value) => {
-    setPreferences(prev => ({
-      ...prev,
-      [key]: value
-    }))
-  }
   
   const handleProfileChange = (key, value) => {
     setProfileForm(prev => ({
@@ -395,21 +384,24 @@ export default function Settings() {
                   <div>
                     <label className="label">Language</label>
                     <select
-                      value={preferences.language}
-                      onChange={(e) => handlePreferenceChange('language', e.target.value)}
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value)}
                       className="input"
                     >
                       <option value="en">English</option>
                       <option value="es">Español</option>
                       <option value="pt">Português</option>
                     </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Language preference saved. Full translation coming soon.
+                    </p>
                   </div>
                   
                   <div>
                     <label className="label">Timezone</label>
                     <select
-                      value={preferences.timezone}
-                      onChange={(e) => handlePreferenceChange('timezone', e.target.value)}
+                      value={timezone}
+                      onChange={(e) => setTimezone(e.target.value)}
                       className="input"
                     >
                       <option value="America/Bogota">America/Bogota</option>
@@ -425,14 +417,14 @@ export default function Settings() {
                       <p className="text-sm text-gray-500">Automatically update dashboard data</p>
                     </div>
                     <button
-                      onClick={() => handlePreferenceChange('autoRefresh', !preferences.autoRefresh)}
+                      onClick={() => setAutoRefresh(!autoRefresh)}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        preferences.autoRefresh ? 'bg-primary-600' : 'bg-gray-200'
+                        autoRefresh ? 'bg-primary-600' : 'bg-gray-200'
                       }`}
                     >
                       <span
                         className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          preferences.autoRefresh ? 'translate-x-6' : 'translate-x-1'
+                          autoRefresh ? 'translate-x-6' : 'translate-x-1'
                         }`}
                       />
                     </button>

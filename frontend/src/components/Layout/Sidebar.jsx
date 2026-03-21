@@ -210,11 +210,11 @@ export default function Sidebar() {
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Analytics</p>
               </div>
               <NavLink
-                to="/analytics"
+                to="/ml-insights"
                 onClick={() => setSidebarOpen(false)}
                 className={clsx(
                   'group flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
-                  location.pathname.startsWith('/analytics')
+                  location.pathname.startsWith('/ml-insights')
                     ? 'bg-primary-50 text-primary-700 border-primary-200'
                     : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                 )}
@@ -223,7 +223,7 @@ export default function Sidebar() {
                   size={18}
                   className={clsx(
                     'flex-shrink-0',
-                    location.pathname.startsWith('/analytics') ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
+                    location.pathname.startsWith('/ml-insights') ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
                   )}
                 />
                 <span>Advanced Analytics</span>

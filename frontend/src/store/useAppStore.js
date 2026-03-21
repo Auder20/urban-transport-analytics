@@ -11,6 +11,9 @@ const useAppStore = create(
       
       // UI state
       theme: 'light',
+      language: 'en',
+      timezone: 'America/Bogota',
+      autoRefresh: true,
       sidebarOpen: true,
       selectedRoute: null,
       selectedStation: null,
@@ -25,6 +28,9 @@ const useAppStore = create(
       setUser: (user) => set({ user }),
       setToken: (token) => set({ token }),
       setTheme: (theme) => set({ theme }),
+      setLanguage: (language) => set({ language }),
+      setTimezone: (timezone) => set({ timezone }),
+      setAutoRefresh: (autoRefresh) => set({ autoRefresh }),
       setRefreshToken: (token) => set({ refreshToken: token }),
       logout: () => set({ user: null, token: null, refreshToken: null }),
       
@@ -63,6 +69,9 @@ const useAppStore = create(
         token: state.token,
         refreshToken: state.refreshToken,
         theme: state.theme,
+        language: state.language,
+        timezone: state.timezone,
+        autoRefresh: state.autoRefresh,
         sidebarOpen: state.sidebarOpen,
         selectedRoute: state.selectedRoute,
         selectedStation: state.selectedStation,
