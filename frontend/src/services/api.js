@@ -64,31 +64,6 @@ api.interceptors.request.use(
 // Response interceptor to handle errors
 setupResponseInterceptor(api)
 
-// Analytics API instance
-const analyticsApi = axios.create({
-  baseURL: '/analytics',
-  timeout: 15000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-})
-
-analyticsApi.interceptors.request.use(
-  (config) => {
-    const token = useAppStore.getState().token
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
-  (error) => {
-    return Promise.reject(error)
-  }
-)
-
-// Apply response interceptor to analytics API as well
-setupResponseInterceptor(analyticsApi)
-
 // Helper functions for common API patterns
 const apiRequest = async (method, url, data = null, config = {}) => {
   try {
@@ -105,21 +80,6 @@ const apiRequest = async (method, url, data = null, config = {}) => {
   }
 }
 
-const analyticsRequest = async (method, url, data = null, config = {}) => {
-  try {
-    const response = await analyticsApi({
-      method,
-      url,
-      data,
-      ...config,
-    })
-    return response.data
-  } catch (error) {
-    console.error(`Analytics API ${method} ${url} error:`, error)
-    throw error
-  }
-}
-
 // Export instances and helpers
-export { api, analyticsApi, apiRequest, analyticsRequest }
+export { api, apiRequest }
 export default api

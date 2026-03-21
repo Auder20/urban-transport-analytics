@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-import { PageLayout } from '@/components/Layout/PageLayout'
+import PageLayout from '@/components/Layout/PageLayout'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useAllBuses, useDeleteBus } from '@/hooks/useBuses'
 import { Plus, Search, Filter, Edit, Trash2, Eye } from 'lucide-react'

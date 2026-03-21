@@ -331,6 +331,56 @@ class AnalyticsController {
     }
   }
 
+  async getTrainingStatus(req, res) {
+    try {
+      const result = await analyticsService.getTrainingStatus()
+      res.json(result)
+    } catch (error) {
+      throw error
+    }
+  }
+
+  async getDataQuality(req, res) {
+    try {
+      const result = await analyticsService.getDataQuality()
+      res.json(result)
+    } catch (error) {
+      throw error
+    }
+  }
+
+  async getRouteAnalysisSummary(req, res) {
+    try {
+      const { routeId } = req.params
+      const result = await analyticsService.getRouteAnalysisSummary(routeId)
+      res.json(result)
+    } catch (error) {
+      throw error
+    }
+  }
+
+  async predictDelay(req, res) {
+    try {
+      const { route_id, hour, day_of_week } = req.query
+
+      if (!route_id || !hour || !day_of_week) {
+        return res.status(400).json({
+          error: 'route_id, hour, and day_of_week are required',
+          code: 'MISSING_PARAMETERS'
+        })
+      }
+
+      const result = await analyticsService.predictDelayForRoute({
+        route_id,
+        hour: parseInt(hour),
+        day_of_week: parseInt(day_of_week)
+      })
+      res.json(result)
+    } catch (error) {
+      throw error
+    }
+  }
+
   async getDatabaseStats() {
     try {
       const [tablesResult, connectionsResult, sizeResult] = await Promise.all([

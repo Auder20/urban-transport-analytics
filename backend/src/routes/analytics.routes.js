@@ -15,6 +15,12 @@ router.get('/peak-hours', analyticsLimiter, asyncHandler(analyticsController.get
 router.get('/route/:routeId/predictions', analyticsLimiter, asyncHandler(analyticsController.getRoutePredictions));
 router.get('/anomalies', analyticsLimiter, asyncHandler(analyticsController.getAnomalies));
 
+// ML & prediction routes (public with rate limiting)
+router.get('/predict/delay', analyticsLimiter, asyncHandler(analyticsController.predictDelay));
+router.get('/analyze/route/:routeId/summary', analyticsLimiter, asyncHandler(analyticsController.getRouteAnalysisSummary));
+router.get('/train/status', analyticsLimiter, asyncHandler(analyticsController.getTrainingStatus));
+router.get('/train/data-quality', analyticsLimiter, asyncHandler(analyticsController.getDataQuality));
+
 // Protected routes
 router.get('/system/stats', 
   authMiddleware, 

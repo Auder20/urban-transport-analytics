@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PageLayout } from '@/components/Layout/PageLayout'
+import PageLayout from '@/components/Layout/PageLayout'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useAllTrips } from '@/hooks/useTrips'
 import { Plus, Search, Filter, Edit, Trash2, Calendar, Clock, Route } from 'lucide-react'

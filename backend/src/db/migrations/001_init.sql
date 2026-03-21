@@ -2,7 +2,7 @@
 CREATE EXTENSION IF NOT EXISTS postgis;
 
 -- Tabla: users
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE users (
 );
 
 -- Tabla: routes
-CREATE TABLE routes (
+CREATE TABLE IF NOT EXISTS routes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   route_code VARCHAR(20) UNIQUE NOT NULL,
   name VARCHAR(120) NOT NULL,
@@ -28,7 +28,7 @@ CREATE TABLE routes (
 );
 
 -- Tabla: stations
-CREATE TABLE stations (
+CREATE TABLE IF NOT EXISTS stations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   station_code VARCHAR(20) UNIQUE NOT NULL,
   name VARCHAR(120) NOT NULL,
@@ -42,10 +42,10 @@ CREATE TABLE stations (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_stations_location ON stations USING GIST(location);
+CREATE INDEX IF NOT EXISTS idx_stations_location ON stations USING GIST(location);
 
 -- Tabla: route_stations
-CREATE TABLE route_stations (
+CREATE TABLE IF NOT EXISTS route_stations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   route_id UUID NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
   station_id UUID NOT NULL REFERENCES stations(id),
@@ -57,7 +57,7 @@ CREATE TABLE route_stations (
 );
 
 -- Tabla: buses
-CREATE TABLE buses (
+CREATE TABLE IF NOT EXISTS buses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   plate_number VARCHAR(15) UNIQUE NOT NULL,
   model VARCHAR(80),
@@ -72,7 +72,7 @@ CREATE TABLE buses (
 );
 
 -- Tabla: schedules
-CREATE TABLE schedules (
+CREATE TABLE IF NOT EXISTS schedules (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   route_id UUID NOT NULL REFERENCES routes(id),
   bus_id UUID REFERENCES buses(id),
@@ -84,7 +84,7 @@ CREATE TABLE schedules (
 );
 
 -- Tabla: trips
-CREATE TABLE trips (
+CREATE TABLE IF NOT EXISTS trips (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   bus_id UUID NOT NULL REFERENCES buses(id),
   route_id UUID NOT NULL REFERENCES routes(id),
@@ -99,5 +99,5 @@ CREATE TABLE trips (
   status VARCHAR(20) DEFAULT 'in_progress'
 );
 
-CREATE INDEX idx_trips_route_id ON trips(route_id);
-CREATE INDEX idx_trips_started_at ON trips(started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_trips_route_id ON trips(route_id);
+CREATE INDEX IF NOT EXISTS idx_trips_started_at ON trips(started_at DESC);

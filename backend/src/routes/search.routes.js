@@ -2,6 +2,8 @@ const express = require('express');
 const pool = require('../config/database');
 const { asyncHandler } = require('../middleware/errorHandler');
 
+const router = express.Router();
+
 /**
  * @swagger
  * /api/search:

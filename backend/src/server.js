@@ -43,7 +43,9 @@ const startServer = async () => {
     const fs = require('fs')
     const path = require('path')
     const migrationsDir = path.join(__dirname, 'db/migrations')
-    const migrationFiles = fs.readdirSync(migrationsDir).sort()
+    const migrationFiles = fs.readdirSync(migrationsDir)
+      .filter(file => file.endsWith('.sql'))
+      .sort()
     for (const file of migrationFiles) {
       const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8')
       await pool.query(sql)
