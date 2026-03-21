@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, Link } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useAppStore } from '@/store/useAppStore'
 import Layout from '@/components/Layout/PageLayout'
@@ -72,7 +72,7 @@ function App() {
           <div className="min-h-screen flex flex-col items-center justify-center gap-4">
             <h1 className="text-4xl font-bold text-gray-900">404</h1>
             <p className="text-gray-600">Esta página no existe.</p>
-            <a href="/dashboard" className="btn btn-primary">Volver al dashboard</a>
+            <Link to="/dashboard" className="btn btn-primary">Volver al dashboard</Link>
           </div>
         } />
       </Routes>

@@ -75,8 +75,8 @@ export function useDelayPrediction(params) {
   return useQuery({
     queryKey: ['analytics', 'delay-prediction', params],
     queryFn: () => analyticsService.predictDelay(params),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: !!params.route_id && !!params.hour && !!params.day_of_week,
+    staleTime: 5 * 60 * 1000,
+    enabled: !!params && !!params.route_id && !!params.hour && !!params.day_of_week,
   })
 }
 

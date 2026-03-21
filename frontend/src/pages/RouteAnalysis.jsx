@@ -16,11 +16,13 @@ export default function RouteAnalysis() {
   const { data: buses, isLoading: busesLoading } = useRouteBuses(routeId)
   const { data: analysis, isLoading: analysisLoading } = useRouteAnalysis(routeId)
   
-  const { data: prediction } = useDelayPrediction({
-    route_id: routeId,
-    hour: new Date().getHours(),
-    day_of_week: new Date().getDay()
-  })
+  const { data: prediction } = useDelayPrediction(
+    routeId ? {
+      route_id: routeId,
+      hour: new Date().getHours(),
+      day_of_week: new Date().getDay()
+    } : undefined
+  )
 
   // Set selected route in global state
   useEffect(() => {

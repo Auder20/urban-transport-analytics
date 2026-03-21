@@ -23,6 +23,7 @@ export default function Sidebar() {
   const { canEdit, canViewAnalytics } = usePermissions()
   const location = useLocation()
   const navigate = useNavigate()
+  const isMobile = () => window.innerWidth < 1024
 
   const handleLogout = () => {
     logout()
@@ -114,7 +115,7 @@ export default function Sidebar() {
                 <NavLink
                   key={item.name}
                   to={item.href}
-                  onClick={() => setSidebarOpen(false)}
+                  onClick={() => isMobile() && setSidebarOpen(false)}
                   className={clsx(
                     'group flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
                     isActive
@@ -146,7 +147,7 @@ export default function Sidebar() {
                     <NavLink
                       key={item.name}
                       to={item.href}
-                      onClick={() => setSidebarOpen(false)}
+                      onClick={() => isMobile() && setSidebarOpen(false)}
                       className={clsx(
                         'group flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
                         isActive
@@ -180,7 +181,7 @@ export default function Sidebar() {
                     <NavLink
                       key={item.name}
                       to={item.href}
-                      onClick={() => setSidebarOpen(false)}
+                      onClick={() => isMobile() && setSidebarOpen(false)}
                       className={clsx(
                         'group flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
                         isActive

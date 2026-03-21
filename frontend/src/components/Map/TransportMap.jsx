@@ -58,6 +58,7 @@ export default function TransportMap({ height = '100vh' }) {
       </div>
 
       <MapContainer 
+        key={`main-map-${mapCenter[0]}-${mapCenter[1]}`}
         center={mapCenter} 
         zoom={mapZoom}
         style={{ height: '100%', width: '100%' }}
@@ -114,7 +115,7 @@ export function MiniMap({ height = 300 }) {
     <div className="card p-4">
       <h3 className="text-lg font-semibold mb-4">Live Map</h3>
       <div className="rounded-lg overflow-hidden border border-gray-200" style={{ height }}>
-        <MapContainer center={center} zoom={11} style={{ height: '100%', width: '100%' }}>
+        <MapContainer key="mini-map" center={center} zoom={11} style={{ height: '100%', width: '100%' }}>
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
