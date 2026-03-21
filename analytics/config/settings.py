@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     debug: bool = False
     
     # CORS
-    cors_origins: list = ["http://localhost:3000", "http://localhost:5173"]
+    cors_origins: list = []
     
     class Config:
         env_file = ".env"

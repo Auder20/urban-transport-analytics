@@ -44,7 +44,7 @@ async def get_route_analysis(
                 passenger_count, status
             FROM trips 
             WHERE route_id = :route_id 
-                AND started_at >= CURRENT_DATE - INTERVAL ':days days'
+                AND started_at >= CURRENT_DATE - (INTERVAL '1 day' * :days)
                 AND delay_minutes IS NOT NULL
             ORDER BY started_at DESC
         """)
@@ -101,7 +101,7 @@ async def get_route_analysis(
             JOIN trips t ON t.route_id = rs.route_id
             WHERE rs.route_id = :route_id 
                 AND t.delay_minutes > 15
-                AND t.started_at >= CURRENT_DATE - INTERVAL ':days days'
+                AND t.started_at >= CURRENT_DATE - (INTERVAL '1 day' * :days)
             GROUP BY s.name
             ORDER BY delayed_trips DESC
             LIMIT 5
@@ -150,29 +150,24 @@ async def get_anomalies(
     Get detected anomalies in trip data
     """
     try:
-        # Build query conditions
-        conditions = ["started_at >= CURRENT_DATE - INTERVAL ':days days'"]
-        params = {"days": days}
-        
-        if route_id:
-            conditions.append("route_id = :route_id")
-            params["route_id"] = route_id
-        
-        where_clause = " AND ".join(conditions)
-        
-        # Get trip data for anomaly detection
-        trips_query = text(f"""
-            SELECT 
-                t.id, t.route_id, t.started_at, t.delay_minutes,
-                r.route_code, r.name as route_name
+        # Build query with bound parameters, no f-strings
+        base_query = """
+            SELECT t.id, t.route_id, t.started_at, t.delay_minutes,
+                   r.route_code, r.name as route_name
             FROM trips t
             JOIN routes r ON t.route_id = r.id
-            WHERE {where_clause}
+            WHERE t.started_at >= CURRENT_DATE - (INTERVAL '1 day' * :days)
                 AND t.delay_minutes IS NOT NULL
-            ORDER BY t.started_at DESC
-        """)
+        """
+        params = {"days": days}
+
+        if route_id:
+            base_query += " AND t.route_id = :route_id"
+            params["route_id"] = route_id
+
+        base_query += " ORDER BY t.started_at DESC"
         
-        trips_result = await session.execute(trips_query, params)
+        trips_result = await session.execute(text(base_query), params)
         trips_data = trips_result.fetchall()
         
         if not trips_data:
@@ -219,33 +214,26 @@ async def get_hourly_delay_analysis(
     Get hourly delay analysis
     """
     try:
-        # Build query conditions
-        conditions = ["started_at >= CURRENT_DATE - INTERVAL ':days days'"]
-        params = {"days": days}
-        
-        if route_id:
-            conditions.append("t.route_id = :route_id")
-            params["route_id"] = route_id
-        
-        where_clause = " AND ".join(conditions)
-        
-        # Get hourly delay statistics
-        hourly_query = text(f"""
-            SELECT 
-                EXTRACT(HOUR FROM t.started_at) as hour,
-                COUNT(*) as trip_count,
-                AVG(t.delay_minutes) as avg_delay,
-                MAX(t.delay_minutes) as max_delay,
-                COUNT(CASE WHEN t.delay_minutes > 15 THEN 1 END) as problematic_trips,
-                COUNT(CASE WHEN t.delay_minutes <= 5 THEN 1 END) as on_time_trips
+        base_query = """
+            SELECT EXTRACT(HOUR FROM t.started_at) as hour,
+                   COUNT(*) as trip_count,
+                   AVG(t.delay_minutes) as avg_delay,
+                   MAX(t.delay_minutes) as max_delay,
+                   COUNT(CASE WHEN t.delay_minutes > 15 THEN 1 END) as problematic_trips,
+                   COUNT(CASE WHEN t.delay_minutes <= 5 THEN 1 END) as on_time_trips
             FROM trips t
-            WHERE {where_clause}
+            WHERE t.started_at >= CURRENT_DATE - (INTERVAL '1 day' * :days)
                 AND t.delay_minutes IS NOT NULL
-            GROUP BY EXTRACT(HOUR FROM t.started_at)
-            ORDER BY hour
-        """)
+        """
+        params = {"days": days}
+
+        if route_id:
+            base_query += " AND t.route_id = :route_id"
+            params["route_id"] = route_id
+
+        base_query += " GROUP BY EXTRACT(HOUR FROM t.started_at) ORDER BY hour"
         
-        hourly_result = await session.execute(hourly_query, params)
+        hourly_result = await session.execute(text(base_query), params)
         hourly_data = hourly_result.fetchall()
         
         hourly_analysis = []

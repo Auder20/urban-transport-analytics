@@ -4,52 +4,47 @@ import { useAppStore } from '@/store/useAppStore'
 
 export function useWebSocket() {
   const [isConnected, setIsConnected] = useState(false)
-  const [notifications, setNotifications] = useState([])
+  const [socket, setSocket] = useState(null)
   const socketRef = useRef(null)
   const { token } = useAppStore()
 
   useEffect(() => {
     if (!token) return
 
-    // If socket already exists and token changed from null to a value, disconnect first
     if (socketRef.current) {
       socketRef.current.disconnect()
       socketRef.current = null
+      setSocket(null)
     }
 
-    // Initialize WebSocket connection
     const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3001'
-    const socket = io(WS_URL, {
+    const newSocket = io(WS_URL, {
       auth: { token },
       transports: ['websocket', 'polling']
     })
-    socketRef.current = socket
+    socketRef.current = newSocket
 
-    socket.on('connect', () => {
+    newSocket.on('connect', () => {
       console.log('🔌 WebSocket connected')
       setIsConnected(true)
+      setSocket(newSocket)
     })
 
-    socket.on('authenticated', (data) => {
+    newSocket.on('authenticated', (data) => {
       console.log('✅ WebSocket authenticated', data)
     })
 
-    socket.on('notification:new', (notification) => {
-      console.log('📬 New notification received:', notification)
-      setNotifications(prev => [notification, ...prev.slice(0, 49)]) // Keep only last 50
-    })
-
-    socket.on('auth_error', (error) => {
+    newSocket.on('auth_error', (error) => {
       console.error('❌ WebSocket authentication failed:', error)
     })
 
-    socket.on('disconnect', () => {
+    newSocket.on('disconnect', () => {
       console.log('🔌 WebSocket disconnected')
       setIsConnected(false)
-      socketRef.current = null
+      setSocket(null)
     })
 
-    socket.on('connect_error', (error) => {
+    newSocket.on('connect_error', (error) => {
       console.error('🔌 WebSocket connection error:', error)
       setIsConnected(false)
     })
@@ -57,12 +52,9 @@ export function useWebSocket() {
     return () => {
       socketRef.current?.disconnect()
       socketRef.current = null
+      setSocket(null)
     }
   }, [token])
 
-  return {
-    isConnected,
-    notifications,
-    socket: socketRef.current
-  }
+  return { isConnected, socket }
 }

@@ -6,6 +6,29 @@ class AnalyticsService {
     this.analyticsUrl = process.env.ANALYTICS_URL || 'http://analytics:8000';
   }
 
+  _handleAxiosError(error, context) {
+    console.error(`Analytics service ${context} error:`, error.message)
+
+    if (error.response) {
+      const err = new Error(
+        error.response.data?.detail || `Analytics service error: ${context}` 
+      )
+      err.statusCode = error.response.status
+      err.code = 'ANALYTICS_SERVICE_ERROR'
+      throw err
+    }
+
+    if (['ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT', 'ERR_BAD_RESPONSE']
+        .includes(error.code)) {
+      const err = new Error('Analytics service is unavailable')
+      err.statusCode = 503
+      err.code = 'ANALYTICS_UNAVAILABLE'
+      throw err
+    }
+
+    throw error
+  }
+
   async getKPIS() {
     try {
       return await cacheService.getOrFetch(
@@ -19,8 +42,7 @@ class AnalyticsService {
         120 // 2 minutes TTL
       );
     } catch (error) {
-      console.error('Analytics service getKPIS error:', error);
-      throw new Error('Failed to fetch KPIs from analytics service');
+      this._handleAxiosError(error, 'getKPIS')
     }
   }
 
@@ -39,8 +61,7 @@ class AnalyticsService {
         300 // 5 minutes TTL
       );
     } catch (error) {
-      console.error('Analytics service predictDelay error:', error);
-      throw new Error('Failed to predict delay');
+      this._handleAxiosError(error, 'predictDelay')
     }
   }
 
@@ -58,8 +79,7 @@ class AnalyticsService {
         600 // 10 minutes TTL
       );
     } catch (error) {
-      console.error('Analytics service getRouteAnalysis error:', error);
-      throw new Error('Failed to get route analysis');
+      this._handleAxiosError(error, 'getRouteAnalysis')
     }
   }
 
@@ -78,8 +98,7 @@ class AnalyticsService {
         1800 // 30 minutes TTL
       );
     } catch (error) {
-      console.error('Analytics service getAnomalies error:', error);
-      throw new Error('Failed to get anomalies');
+      this._handleAxiosError(error, 'getAnomalies')
     }
   }
 
@@ -94,8 +113,7 @@ class AnalyticsService {
       
       return response.data;
     } catch (error) {
-      console.error('Analytics service retrainModel error:', error);
-      throw new Error('Failed to retrain model');
+      this._handleAxiosError(error, 'retrainModel')
     }
   }
 
@@ -106,8 +124,7 @@ class AnalyticsService {
       })
       return response.data
     } catch (error) {
-      console.error('Analytics service getTrainingStatus error:', error)
-      throw new Error('Failed to get training status')
+      this._handleAxiosError(error, 'getTrainingStatus')
     }
   }
 
@@ -125,8 +142,7 @@ class AnalyticsService {
         1800 // 30 minutes TTL
       )
     } catch (error) {
-      console.error('Analytics service getDataQuality error:', error)
-      throw new Error('Failed to get data quality')
+      this._handleAxiosError(error, 'getDataQuality')
     }
   }
 
@@ -144,8 +160,7 @@ class AnalyticsService {
         600 // 10 minutes TTL
       )
     } catch (error) {
-      console.error('Analytics service getRouteAnalysisSummary error:', error)
-      throw new Error('Failed to get route analysis summary')
+      this._handleAxiosError(error, 'getRouteAnalysisSummary')
     }
   }
 
@@ -165,8 +180,7 @@ class AnalyticsService {
         300 // 5 minutes TTL
       )
     } catch (error) {
-      console.error('Analytics service predictDelayForRoute error:', error)
-      throw new Error('Failed to predict delay')
+      this._handleAxiosError(error, 'predictDelayForRoute')
     }
   }
 

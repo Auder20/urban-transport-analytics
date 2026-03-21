@@ -12,10 +12,10 @@ scrape_configs:
       - targets: ['analytics:8000']
     metrics_path: '/metrics'
 
-  - job_name: 'postgres'
-    static_configs:
-      - targets: ['postgres:5432']
-
-  - job_name: 'redis'
-    static_configs:
-      - targets: ['redis:6379']
+  # Descomenta cuando añadas los exporters a docker-compose:
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']

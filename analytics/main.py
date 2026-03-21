@@ -114,19 +114,30 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
+# Redis connection check function
+def _check_redis_connection() -> bool:
+    try:
+        import redis as redis_sync
+        r = redis_sync.from_url(settings.redis_url, socket_timeout=2)
+        return r.ping()
+    except Exception:
+        return False
+
+
 # Health check endpoint
 @app.get("/health", response_model=HealthResponse, tags=["health"])
 async def health_check():
     """Health check endpoint"""
     try:
         db_connected = await test_connection()
+        redis_ok = _check_redis_connection()
         
         return HealthResponse(
-            status="healthy" if db_connected else "degraded",
+            status="healthy" if (db_connected and redis_ok) else "degraded",
             timestamp=datetime.now(),
             version=settings.api_version,
             database_connected=db_connected,
-            redis_connected=True,  # Would implement Redis health check
+            redis_connected=redis_ok,
             model_loaded=delay_predictor.is_trained,
             uptime_seconds=time.time() - startup_time
         )

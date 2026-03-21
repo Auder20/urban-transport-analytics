@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { usePermissions } from '@/hooks/usePermissions'
-import { useAllStations } from '@/hooks/useStations'
+import { useAllStations, useCreateStation } from '@/hooks/useStations'
 import { Plus, Search, Filter, Edit, Trash2, MapPin } from 'lucide-react'
 import toast from 'react-hot-toast'
 import EditModal from '@/components/shared/EditModal'
@@ -9,6 +9,11 @@ import api from '@/services/api'
 
 export default function StationsList() {
   const { canEdit } = usePermissions()
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [newStation, setNewStation] = useState({
+    name: '', stationCode: '', lat: '', lng: '', address: '', type: 'stop'
+  })
+  const { mutate: createStation, isPending: creating } = useCreateStation()
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [editingStation, setEditingStation] = useState(null)
@@ -87,7 +92,10 @@ export default function StationsList() {
           </div>
           
           {canEdit && (
-            <button className="btn btn-primary flex items-center gap-2">
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="btn btn-primary flex items-center gap-2"
+            >
               <Plus size={16} />
               Add Station
             </button>
@@ -382,6 +390,59 @@ export default function StationsList() {
             >
               <option value="true">Active</option>
               <option value="false">Inactive</option>
+            </select>
+          </div>
+        </form>
+      </EditModal>
+
+      {/* Add Station Modal */}
+      <EditModal
+        isOpen={showAddModal}
+        onClose={() => { setShowAddModal(false); setNewStation({ name: '', stationCode: '', lat: '', lng: '', address: '', type: 'stop' }) }}
+        title="Add Station"
+        isLoading={creating}
+      >
+        <form id="edit-form" onSubmit={(e) => {
+          e.preventDefault()
+          createStation(newStation, {
+            onSuccess: () => { setShowAddModal(false); toast.success('Station added') },
+            onError: () => toast.error('Failed to add station')
+          })
+        }} className="space-y-4">
+          <div>
+            <label className="label">Name *</label>
+            <input className="input" required value={newStation.name}
+              onChange={e => setNewStation(p => ({ ...p, name: e.target.value }))} />
+          </div>
+          <div>
+            <label className="label">Station Code</label>
+            <input className="input" value={newStation.stationCode}
+              onChange={e => setNewStation(p => ({ ...p, stationCode: e.target.value }))} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Latitude</label>
+              <input className="input" type="number" step="0.000001" value={newStation.lat}
+                onChange={e => setNewStation(p => ({ ...p, lat: parseFloat(e.target.value) || '' }))} />
+            </div>
+            <div>
+              <label className="label">Longitude</label>
+              <input className="input" type="number" step="0.000001" value={newStation.lng}
+                onChange={e => setNewStation(p => ({ ...p, lng: parseFloat(e.target.value) || '' }))} />
+            </div>
+          </div>
+          <div>
+            <label className="label">Address</label>
+            <input className="input" value={newStation.address}
+              onChange={e => setNewStation(p => ({ ...p, address: e.target.value }))} />
+          </div>
+          <div>
+            <label className="label">Type</label>
+            <select className="input" value={newStation.type}
+              onChange={e => setNewStation(p => ({ ...p, type: e.target.value }))}>
+              <option value="stop">Stop</option>
+              <option value="terminal">Terminal</option>
+              <option value="hub">Hub</option>
             </select>
           </div>
         </form>

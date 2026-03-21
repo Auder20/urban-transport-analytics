@@ -18,8 +18,8 @@ services:
     build: ./backend
     environment:
       - DATABASE_URL=postgresql://uta:secret@postgres:5432/uta_db
-      - MONGODB_URI=mongodb://mongo:27017/uta_logs
-      - REDIS_URL=redis://redis:6379
+      - MONGODB_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/uta_logs?authSource=admin
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
       - ANALYTICS_URL=http://analytics:8000
       - JWT_SECRET=${JWT_SECRET}
       - NODE_ENV=production
@@ -31,16 +31,18 @@ services:
     networks: [uta-net]
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health || exit 1"]
+      interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
 
   analytics:
     build: ./analytics
     environment:
       - DATABASE_URL=postgresql://uta:secret@postgres:5432/uta_db
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - CORS_ORIGINS=["http://localhost:3000","http://localhost:5173"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -82,8 +84,6 @@ services:
       POSTGRES_DB: uta_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/src/db/migrations:/docker-entrypoint-initdb.d
-      - ./scripts:/docker-entrypoint-initdb.d/scripts
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U uta -d uta_db']
       interval: 5s
@@ -95,6 +95,8 @@ services:
   mongo:
     image: mongo:7.0
     environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
       MONGO_INITDB_DATABASE: uta_logs
     volumes:
       - mongo_data:/data/db
@@ -103,7 +105,7 @@ services:
 
   redis:
     image: redis:7.2-alpine
-    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD} --appendonly yes
     volumes:
       - redis_data:/data
     healthcheck:

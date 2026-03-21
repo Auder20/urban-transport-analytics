@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, Link } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { useAppStore } from '@/store/useAppStore'
 import Layout from '@/components/Layout/PageLayout'
@@ -16,6 +16,7 @@ import BusesList from '@/pages/BusesList'
 import StationsList from '@/pages/StationsList'
 import TripsList from '@/pages/TripsList'
 import Schedules from '@/pages/Schedules'
+import NotificationsPage from '@/pages/NotificationsPage'
 
 // Protected route wrapper
 const ProtectedRoute = ({ children }) => {
@@ -28,14 +29,15 @@ const ProtectedRoute = ({ children }) => {
 
 function App() {
   const { theme, token, setToken } = useAppStore()
+  const [isInitializing, setIsInitializing] = useState(!token)
 
   // Silent refresh on app mount
   useEffect(() => {
-    const { token: currentToken, setToken } = useAppStore.getState()
-    if (!currentToken) {
+    if (!token) {
       axios.post('/api/auth/refresh', {}, { withCredentials: true })
         .then(res => setToken(res.data.accessToken))
-        .catch(() => {}) // No hay sesión activa, el usuario verá el login
+        .catch(() => {})
+        .finally(() => setIsInitializing(false))
     }
   }, [])
 
@@ -61,6 +63,14 @@ function App() {
   }
 }, [theme])
 
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Routes>
@@ -84,6 +94,7 @@ function App() {
           <Route path="stations" element={<StationsList />} />
           <Route path="trips" element={<TripsList />} />
           <Route path="schedules" element={<Schedules />} />
+          <Route path="notifications" element={<NotificationsPage />} />
         </Route>
         
         <Route path="*" element={

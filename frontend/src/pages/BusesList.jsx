@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { usePermissions } from '@/hooks/usePermissions'
-import { useAllBuses, useDeleteBus } from '@/hooks/useBuses'
+import { useAllBuses, useDeleteBus, useUpdateBus, useCreateBus } from '@/hooks/useBuses'
 import { Plus, Search, Filter, Edit, Trash2, Eye } from 'lucide-react'
 import toast from 'react-hot-toast'
 import EditModal from '@/components/shared/EditModal'
@@ -9,6 +9,11 @@ import api from '@/services/api'
 
 export default function BusesList() {
   const { canEdit } = usePermissions()
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [newBus, setNewBus] = useState({
+    plateNumber: '', model: '', year: '', capacity: 80
+  })
+  const { mutate: createBus, isPending: creating } = useCreateBus()
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [editingBus, setEditingBus] = useState(null)
@@ -32,20 +37,7 @@ export default function BusesList() {
   const queryClient = useQueryClient()
   const { mutate: deleteBus, isPending: deleting } = useDeleteBus()
 
-  const { mutate: updateBus, isPending: updating } = useMutation({
-    mutationFn: async (busData) => {
-      const { id, ...updateData } = busData
-      return api.put(`/buses/${id}`, updateData)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['buses'] })
-      toast.success('Bus updated successfully')
-      setEditingBus(null)
-    },
-    onError: () => {
-      toast.error('Failed to update bus')
-    }
-  })
+  const { mutate: updateBus, isPending: updating } = useUpdateBus()
 
   const handleEdit = (bus) => {
     setEditingBus({
@@ -60,7 +52,8 @@ export default function BusesList() {
 
   const handleSaveBus = (e) => {
     e.preventDefault()
-    updateBus(editingBus)
+    const { id, ...data } = editingBus
+    updateBus({ id, data })
   }
 
   const handleDelete = (bus) => {
@@ -83,9 +76,11 @@ export default function BusesList() {
           </div>
           
           {canEdit && (
-            <button className="btn btn-primary flex items-center gap-2">
-              <Plus size={16} />
-              Add Bus
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="btn btn-primary flex items-center gap-2"
+            >
+              <Plus size={16} /> Add Bus
             </button>
           )}
         </div>
@@ -356,6 +351,45 @@ export default function BusesList() {
               <option value="">No Route Assigned</option>
               {/* This would be populated with actual routes */}
             </select>
+          </div>
+        </form>
+      </EditModal>
+
+      {/* Add Bus Modal */}
+      <EditModal
+        isOpen={showAddModal}
+        onClose={() => { setShowAddModal(false); setNewBus({ plateNumber: '', model: '', year: '', capacity: 80 }) }}
+        title="Add Bus"
+        isLoading={creating}
+      >
+        <form id="edit-form" onSubmit={(e) => {
+          e.preventDefault()
+          createBus(newBus, {
+            onSuccess: () => { setShowAddModal(false); toast.success('Bus added') },
+            onError: () => toast.error('Failed to add bus')
+          })
+        }} className="space-y-4">
+          <div>
+            <label className="label">Plate Number *</label>
+            <input className="input" required value={newBus.plateNumber}
+              onChange={e => setNewBus(p => ({ ...p, plateNumber: e.target.value }))} />
+          </div>
+          <div>
+            <label className="label">Model</label>
+            <input className="input" value={newBus.model}
+              onChange={e => setNewBus(p => ({ ...p, model: e.target.value }))} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Year</label>
+              <input className="input" type="number" value={newBus.year}
+                onChange={e => setNewBus(p => ({ ...p, year: parseInt(e.target.value) || '' }))} />
+            </div>
+            <div>
+              <label className="label">Capacity</label>
+              <input className="input" type="number" value={newBus.capacity}
+                onChange={e => setNewBus(p => ({ ...p, capacity: parseInt(e.target.value) || 80 }))} />
+            </div>
           </div>
         </form>
       </EditModal>

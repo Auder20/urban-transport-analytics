@@ -27,3 +27,11 @@ export function useStationArrivals(id) {
     enabled: !!id,
   })
 }
+
+export function useCreateStation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: stationsService.create,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['stations'] }),
+  })
+}

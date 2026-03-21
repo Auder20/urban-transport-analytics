@@ -30,23 +30,41 @@ class BusesController {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 20;
       const offset = (page - 1) * limit;
+      const search = req.query.search?.trim();
+      const statusFilter = req.query.status;
+
+      const filterParams = [];
+      const conditions = [];
+
+      if (statusFilter) {
+        filterParams.push(statusFilter);
+        conditions.push(`b.status = $${filterParams.length}`);
+      }
+
+      if (search) {
+        filterParams.push(`%${search}%`);
+        conditions.push(`(b.plate_number ILIKE $${filterParams.length} OR b.model ILIKE $${filterParams.length})`);
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      const queryParams = [...filterParams, limit, offset];
 
       const query = `
-        SELECT 
-          b.id, b.plate_number, b.model, b.year, b.capacity,
-          b.status, b.last_lat, b.last_lng, b.last_seen_at, b.created_at,
-          r.id as route_id, r.route_code, r.name as route_name, r.color as route_color
+        SELECT b.id, b.plate_number, b.model, b.year, b.capacity,
+               b.status, b.last_lat, b.last_lng, b.last_seen_at, b.created_at,
+               r.id as route_id, r.route_code, r.name as route_name, r.color as route_color
         FROM buses b
         LEFT JOIN routes r ON b.current_route_id = r.id
+        ${whereClause}
         ORDER BY b.plate_number
-        LIMIT $1 OFFSET $2
+        LIMIT $${filterParams.length + 1} OFFSET $${filterParams.length + 2}
       `;
 
-      const countQuery = 'SELECT COUNT(*) FROM buses';
+      const countQuery = `SELECT COUNT(*) FROM buses b ${whereClause}`;
 
       const [busesResult, countResult] = await Promise.all([
-        pool.query(query, [limit, offset]),
-        pool.query(countQuery)
+        pool.query(query, queryParams),
+        pool.query(countQuery, filterParams)
       ]);
 
       const buses = busesResult.rows.map(bus => ({

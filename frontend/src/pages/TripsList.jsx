@@ -1,4 +1,8 @@
 import { useState } from 'react'
+import {
+  startOfMonth, endOfMonth, eachDayOfInterval,
+  getDay, format, isSameDay, isToday
+} from 'date-fns'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useAllTrips } from '@/hooks/useTrips'
 import { Plus, Search, Filter, Edit, Trash2, Calendar, Clock, Route, Eye } from 'lucide-react'
@@ -11,6 +15,7 @@ export default function TripsList() {
   const [showFilters, setShowFilters] = useState(false)
   const [viewMode, setViewMode] = useState('list') // 'list' or 'calendar'
   const [selectedTrip, setSelectedTrip] = useState(null)
+  const [currentMonth, setCurrentMonth] = useState(new Date())
 
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('')
@@ -25,6 +30,15 @@ export default function TripsList() {
   const pagination = data?.pagination
 
   const filteredTrips = trips
+
+  // Helper functions for calendar view
+  const getTripsForDay = (day) =>
+    trips.filter(t => isSameDay(new Date(t.startedAt), day))
+
+  const daysInMonth = eachDayOfInterval({
+    start: startOfMonth(currentMonth),
+    end: endOfMonth(currentMonth)
+  })
 
   const handleViewTrip = (trip) => {
     setSelectedTrip(trip)
@@ -67,10 +81,14 @@ export default function TripsList() {
             </div>
             
             {canEdit && (
-              <button className="btn btn-primary flex items-center gap-2">
-                <Plus size={16} />
-                Add Trip
-              </button>
+              <div className="relative group">
+                <button disabled className="btn btn-primary flex items-center gap-2 opacity-50 cursor-not-allowed">
+                  <Plus size={16} /> Add Trip
+                </button>
+                <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap opacity-0 group-hover:opacity-100">
+                  Trips are created automatically by the tracking system
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -166,10 +184,91 @@ export default function TripsList() {
             </div>
           ) : viewMode === 'calendar' ? (
             <div className="p-8">
-              <div className="text-center">
-                <Calendar className="text-gray-400 text-6xl mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Calendar View</h3>
-                <p className="text-gray-600 mb-4">Calendar view will be implemented with a date picker component</p>
+              {/* Calendar Header */}
+              <div className="flex items-center justify-between mb-6">
+                <button
+                  onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  Previous
+                </button>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {format(currentMonth, 'MMMM yyyy')}
+                </h2>
+                <button
+                  onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  Next
+                </button>
+              </div>
+
+              {/* Calendar Grid */}
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                {/* Weekday headers */}
+                <div className="grid grid-cols-7 bg-gray-50">
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                    <div key={day} className="p-2 text-center text-xs font-medium text-gray-700 border-b">
+                      {day}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Calendar days */}
+                <div className="grid grid-cols-7">
+                  {/* Empty cells for days before month starts */}
+                  {Array(getDay(startOfMonth(currentMonth))).fill(null).map((_, index) => (
+                    <div key={`empty-${index}`} className="p-2 border-r border-b"></div>
+                  ))}
+
+                  {/* Days of the month */}
+                  {daysInMonth.map(day => {
+                    const dayTrips = getTripsForDay(day)
+                    const hasTrips = dayTrips.length > 0
+                    
+                    return (
+                      <div
+                        key={day.toISOString()}
+                        onClick={() => hasTrips && setSelectedTrip(dayTrips[0])}
+                        className={`
+                          p-2 border-r border-b min-h-[80px] cursor-pointer
+                          ${isToday(day) ? 'bg-blue-50' : 'hover:bg-gray-50'}
+                          ${hasTrips ? 'relative' : ''}
+                        `}
+                      >
+                        <div className={`
+                          text-sm font-medium
+                          ${isToday(day) ? 'text-blue-600' : 'text-gray-900'}
+                        `}>
+                          {format(day, 'd')}
+                        </div>
+                        
+                        {/* Trip indicators */}
+                        {hasTrips && (
+                          <div className="absolute bottom-1 left-1 right-1">
+                            <div className="flex gap-1 justify-center">
+                              {dayTrips.slice(0, 3).map((trip, index) => (
+                                <div
+                                  key={trip.id}
+                                  className={`
+                                    w-2 h-2 rounded-full
+                                    ${trip.delayMinutes <= 5 ? 'bg-green-500' : 'bg-red-500'}
+                                  `}
+                                  title={`${trip.route?.routeCode} - ${trip.delayMinutes}min delay`}
+                                />
+                              ))}
+                              {dayTrips.length > 3 && (
+                                <div className="w-2 h-2 bg-gray-400 rounded-full text-xs">
+                                  +{dayTrips.length - 3}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </div>
           ) : filteredTrips.length === 0 ? (

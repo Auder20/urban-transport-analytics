@@ -7,7 +7,7 @@ export function useNotifications() {
   const [offset, setOffset] = useState(0)
   const limit = 20
   const queryClient = useQueryClient()
-  const { isConnected, notifications: wsNotifications, socket } = useWebSocket()
+  const { isConnected, socket } = useWebSocket()
 
   // HTTP polling for initial load and fallback
   const {
@@ -28,10 +28,8 @@ export function useNotifications() {
     placeholderData: (previousData) => previousData // Keep previous data while loading new page
   })
 
-  // Merge WebSocket notifications with HTTP notifications
-  const allNotifications = wsNotifications.length > 0 
-    ? [...wsNotifications, ...(data?.notifications || [])]
-    : (data?.notifications || [])
+  // Use only HTTP notifications (WebSocket updates are handled via cache)
+  const allNotifications = data?.notifications || []
 
   // WebSocket event handlers
   useEffect(() => {

@@ -84,12 +84,18 @@ class AuthController {
         email: user.email,
         role: user.role,
         loginTime: new Date().toISOString()
-      }, 24 * 60 * 60); // 24 hours
+      }, 7 * 24 * 60 * 60); // 7 days — matches refresh token lifetime
 
       // Update last login
       await pool.query(
         'UPDATE users SET last_login = NOW() WHERE id = $1',
         [userId]
+      );
+
+      // Log user activity
+      await pool.query(
+        'INSERT INTO user_activity_logs (user_id, ip_address, user_agent) VALUES ($1, $2, $3)',
+        [userId, req.ip, req.get('User-Agent')]
       );
 
       // Set refresh token as HttpOnly cookie

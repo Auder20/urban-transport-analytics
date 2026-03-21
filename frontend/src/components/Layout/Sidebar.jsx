@@ -12,7 +12,8 @@ import {
   BarChart3,
   Users,
   Calendar,
-  MapPin
+  MapPin,
+  Bell
 } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -36,6 +37,7 @@ export default function Sidebar() {
     { name: 'Live Map', href: '/map', icon: Map },
     { name: 'Routes', href: '/routes', icon: Route },
     { name: 'Reports', href: '/reports', icon: FileText },
+    { name: 'Notifications', href: '/notifications', icon: Bell },
     { name: 'Settings', href: '/settings', icon: Settings },
   ]
 
