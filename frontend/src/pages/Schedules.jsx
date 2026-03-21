@@ -1,13 +1,17 @@
 import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useAllSchedules, useDeactivateSchedule } from '@/hooks/useSchedules'
 import { Plus, Search, Filter, Edit, Trash2, Clock, Calendar, Users } from 'lucide-react'
 import toast from 'react-hot-toast'
+import EditModal from '@/components/shared/EditModal'
+import api from '@/services/api'
 
 export default function Schedules() {
   const { isOperator } = usePermissions()
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  const [editingSchedule, setEditingSchedule] = useState(null)
 
   const [routeFilter, setRouteFilter] = useState('')
   const { data, isLoading: loading, isError, refetch } = useAllSchedules({
@@ -15,7 +19,39 @@ export default function Schedules() {
   })
   const schedules = data?.schedules || []
 
+  const queryClient = useQueryClient()
   const { mutate: deactivate, isPending: deactivating } = useDeactivateSchedule()
+
+  const { mutate: updateSchedule, isPending: updating } = useMutation({
+    mutationFn: async (scheduleData) => {
+      const { id, ...updateData } = scheduleData
+      return api.put(`/schedules/${id}`, updateData)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['schedules'])
+      toast.success('Schedule updated successfully')
+      setEditingSchedule(null)
+    },
+    onError: () => {
+      toast.error('Failed to update schedule')
+    }
+  })
+
+  const handleEdit = (schedule) => {
+    setEditingSchedule({
+      id: schedule.id,
+      routeId: schedule.routeId || '',
+      departureTime: schedule.scheduledStart || '',
+      arrivalTime: schedule.scheduledEnd || '',
+      isActive: schedule.isActive || true,
+      daysOfWeek: schedule.dayOfWeek || []
+    })
+  }
+
+  const handleSaveSchedule = (e) => {
+    e.preventDefault()
+    updateSchedule(editingSchedule)
+  }
 
   const handleDelete = (schedule) => {
     const routeName = schedule.route?.name || 'this schedule'
@@ -213,7 +249,10 @@ export default function Schedules() {
                       {isOperator && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center gap-2">
-                            <button className="text-primary-600 hover:text-primary-900">
+                            <button 
+                              onClick={() => handleEdit(schedule)}
+                              className="text-primary-600 hover:text-primary-900"
+                            >
                               <Edit size={16} />
                             </button>
                             <button
@@ -233,6 +272,101 @@ export default function Schedules() {
             </div>
           )}
         </div>
+
+      {/* Edit Schedule Modal */}
+      <EditModal
+        isOpen={!!editingSchedule}
+        onClose={() => setEditingSchedule(null)}
+        title="Edit Schedule"
+        isLoading={updating}
+      >
+        <form id="edit-form" onSubmit={handleSaveSchedule} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Route
+            </label>
+            <select
+              value={editingSchedule?.routeId || ''}
+              onChange={(e) => setEditingSchedule(prev => ({ ...prev, routeId: e.target.value }))}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-gray-100"
+              required
+            >
+              <option value="">Select Route</option>
+              {/* This would be populated with actual routes */}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Departure Time
+              </label>
+              <input
+                type="time"
+                value={editingSchedule?.departureTime || ''}
+                onChange={(e) => setEditingSchedule(prev => ({ ...prev, departureTime: e.target.value }))}
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-gray-100"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Arrival Time
+              </label>
+              <input
+                type="time"
+                value={editingSchedule?.arrivalTime || ''}
+                onChange={(e) => setEditingSchedule(prev => ({ ...prev, arrivalTime: e.target.value }))}
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-gray-100"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Days of Week
+            </label>
+            <div className="space-y-2">
+              {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day, index) => (
+                <label key={day} className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={editingSchedule?.daysOfWeek?.includes(index) || false}
+                    onChange={(e) => {
+                      const daysOfWeek = [...(editingSchedule?.daysOfWeek || [])]
+                      if (e.target.checked) {
+                        daysOfWeek.push(index)
+                      } else {
+                        const idx = daysOfWeek.indexOf(index)
+                        if (idx > -1) daysOfWeek.splice(idx, 1)
+                      }
+                      setEditingSchedule(prev => ({ ...prev, daysOfWeek }))
+                    }}
+                    className="mr-2"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{day}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Status
+            </label>
+            <select
+              value={editingSchedule?.isActive ? 'true' : 'false'}
+              onChange={(e) => setEditingSchedule(prev => ({ ...prev, isActive: e.target.value === 'true' }))}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-gray-100"
+              required
+            >
+              <option value="true">Active</option>
+              <option value="false">Inactive</option>
+            </select>
+          </div>
+        </form>
+      </EditModal>
     </div>
   )
 }

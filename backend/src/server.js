@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { app, server, io } = require('./app');
 const pool = require('./config/database');
 

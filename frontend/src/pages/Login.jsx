@@ -14,7 +14,51 @@ export default function Login() {
   })
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [errors, setErrors] = useState({})
+
+  // Email validation
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
+
+  // Password validation
+  const validatePassword = (password) => {
+    return password.length >= 6
+  }
+
+  // Validate individual fields
+  const validateField = (name, value) => {
+    let error = ''
+    
+    if (name === 'email') {
+      if (!value) {
+        error = 'Email is required'
+      } else if (!validateEmail(value)) {
+        error = 'Please enter a valid email address'
+      }
+    } else if (name === 'password') {
+      if (!value) {
+        error = 'Password is required'
+      } else if (!validatePassword(value)) {
+        error = 'Password must be at least 6 characters'
+      }
+    }
+    
+    setErrors(prev => ({
+      ...prev,
+      [name]: error
+    }))
+    
+    return !error
+  }
+
+  // Validate entire form
+  const validateForm = () => {
+    const emailValid = validateField('email', formData.email)
+    const passwordValid = validateField('password', formData.password)
+    return emailValid && passwordValid
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -22,14 +66,25 @@ export default function Login() {
       ...prev,
       [name]: value
     }))
-    // Clear error when user starts typing
-    if (error) setError('')
+    
+    // Clear error for this field when user starts typing
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }))
+    }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    
+    if (!validateForm()) {
+      return
+    }
+    
     setIsLoading(true)
-    setError('')
+    setErrors({})
 
     try {
       const response = await api.post('/auth/login', formData)
@@ -43,7 +98,7 @@ export default function Login() {
       navigate('/dashboard')
     } catch (err) {
       const errorMessage = err.response?.data?.error || 'Login failed. Please try again.'
-      setError(errorMessage)
+      setErrors({ form: errorMessage })
     } finally {
       setIsLoading(false)
     }
@@ -68,11 +123,11 @@ export default function Login() {
         {/* Login Form */}
         <div className="bg-white shadow-xl rounded-lg p-8">
           <form className="space-y-6" onSubmit={handleSubmit}>
-            {/* Error Message */}
-            {error && (
+            {/* Form-level Error */}
+            {errors.form && (
               <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
                 <AlertCircle size={16} className="text-red-500" />
-                <span className="text-sm text-red-600">{error}</span>
+                <span className="text-sm text-red-600">{errors.form}</span>
               </div>
             )}
 
@@ -89,9 +144,12 @@ export default function Login() {
                 required
                 value={formData.email}
                 onChange={handleChange}
-                className="input"
+                className={`input ${errors.email ? 'border-red-500 focus:ring-red-500' : ''}`}
                 placeholder="Enter your email"
               />
+              {errors.email && (
+                <p className="text-sm text-red-600 mt-1">{errors.email}</p>
+              )}
             </div>
 
             {/* Password */}
@@ -108,7 +166,7 @@ export default function Login() {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="input pr-10"
+                  className={`input pr-10 ${errors.password ? 'border-red-500 focus:ring-red-500' : ''}`}
                   placeholder="Enter your password"
                 />
                 <button
@@ -123,13 +181,16 @@ export default function Login() {
                   )}
                 </button>
               </div>
+              {errors.password && (
+                <p className="text-sm text-red-600 mt-1">{errors.password}</p>
+              )}
             </div>
 
             {/* Submit Button */}
             <div>
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || Object.keys(errors).some(key => errors[key])}
                 className="btn btn-primary w-full"
               >
                 {isLoading ? (

@@ -10,10 +10,14 @@ export default function Reports() {
   const [format, setFormat] = useState('pdf')
   const [isGenerating, setIsGenerating] = useState(false)
 
-  const { data: delays } = useDelays({ days: parseInt(dateRange.replace('days', '')) })
-  const { data: problematicRoutes } = useProblematicRoutes({ days: parseInt(dateRange.replace('days', '')) })
-  const { data: peakHours } = usePeakHours({ days: parseInt(dateRange.replace('days', '')) })
-  const { data: anomalies } = useAnomalies({ days: parseInt(dateRange.replace('days', '')) })
+  // Proper days mapping instead of fragile string manipulation
+  const DAY_MAP = { '7days': 7, '30days': 30, '90days': 90 }
+  const days = DAY_MAP[dateRange] || 7
+
+  const { data: delays } = useDelays({ days })
+  const { data: problematicRoutes } = useProblematicRoutes({ days })
+  const { data: peakHours } = usePeakHours({ days })
+  const { data: anomalies } = useAnomalies({ days })
 
   const reportTypes = [
     {
@@ -49,23 +53,401 @@ export default function Reports() {
   const generateReport = async () => {
     try {
       setIsGenerating(true)
-      const response = await api.get('/analytics/export', {
-        params: { type: selectedReport, days: dateRange.replace('days', ''), format },
-        responseType: 'blob'
-      })
-      const url = URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `${selectedReport}-report-${dateRange}.${format === 'pdf' ? 'pdf' : 'csv'}` 
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      
+      if (format === 'csv') {
+        generateCSVReport()
+      } else if (format === 'pdf') {
+        generatePDFReport()
+      } else if (format === 'excel') {
+        generateCSVReport() // For now, use CSV format for Excel option
+      }
+      
+      toast.success(`Report generated successfully as ${format.toUpperCase()}`)
     } catch (err) {
+      console.error('Error generating report:', err)
       toast.error('Error generating report')
     } finally {
       setIsGenerating(false)
     }
+  }
+
+  const generateCSVReport = () => {
+    let csvContent = ''
+    let filename = ''
+    
+    switch (selectedReport) {
+      case 'performance':
+        csvContent = generatePerformanceCSV()
+        filename = `performance-report-${dateRange}.csv`
+        break
+      case 'delays':
+        csvContent = generateDelaysCSV()
+        filename = `delay-analysis-${dateRange}.csv`
+        break
+      case 'routes':
+        csvContent = generateRoutesCSV()
+        filename = `route-performance-${dateRange}.csv`
+        break
+      case 'anomalies':
+        csvContent = generateAnomaliesCSV()
+        filename = `anomaly-report-${dateRange}.csv`
+        break
+      default:
+        throw new Error('Invalid report type')
+    }
+    
+    downloadFile(csvContent, filename, 'text/csv')
+  }
+
+  const generatePDFReport = () => {
+    let htmlContent = ''
+    let filename = ''
+    
+    switch (selectedReport) {
+      case 'performance':
+        htmlContent = generatePerformanceHTML()
+        filename = `performance-report-${dateRange}.html`
+        break
+      case 'delays':
+        htmlContent = generateDelaysHTML()
+        filename = `delay-analysis-${dateRange}.html`
+        break
+      case 'routes':
+        htmlContent = generateRoutesHTML()
+        filename = `route-performance-${dateRange}.html`
+        break
+      case 'anomalies':
+        htmlContent = generateAnomaliesHTML()
+        filename = `anomaly-report-${dateRange}.html`
+        break
+      default:
+        throw new Error('Invalid report type')
+    }
+    
+    downloadFile(htmlContent, filename, 'text/html')
+    // Auto-open print dialog for PDF-like experience
+    const newWindow = window.open('', '_blank')
+    newWindow.document.write(htmlContent)
+    newWindow.document.close()
+    newWindow.print()
+  }
+
+  const downloadFile = (content, filename, mimeType) => {
+    const blob = new Blob([content], { type: mimeType })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  const generatePerformanceCSV = () => {
+    const routes = problematicRoutes?.routes || []
+    let csv = 'Route Name,Route Code,Average Delay,Total Trips,On-Time %,Problematic Trips\n'
+    
+    routes.forEach(route => {
+      csv += `"${route.name}","${route.routeCode}",${route.averageDelay || 0},${route.totalTrips || 0},${route.onTimePercentage || 0}%,${route.problematicTrips || 0}\n`
+    })
+    
+    return csv
+  }
+
+  const generateDelaysCSV = () => {
+    const delayData = delays?.delays || []
+    let csv = 'Route,Route Code,Hour,Trip Count,Average Delay,Max Delay,Problematic Trips\n'
+    
+    delayData.forEach(delay => {
+      csv += `"${delay.route?.name}","${delay.route?.code}","${delay.hour}",${delay.tripCount},${delay.averageDelay || 0},${delay.maxDelay || 0},${delay.problematicTrips || 0}\n`
+    })
+    
+    return csv
+  }
+
+  const generateRoutesCSV = () => {
+    const routes = problematicRoutes?.routes || []
+    let csv = 'Route Name,Route Code,Color,Average Delay,Max Delay,Total Trips,On-Time Trips,On-Time %,Problematic Trips\n'
+    
+    routes.forEach(route => {
+      csv += `"${route.name}","${route.routeCode}","${route.color}",${route.averageDelay || 0},${route.maxDelay || 0},${route.totalTrips || 0},${route.onTimeTrips || 0},${route.onTimePercentage || 0}%,${route.problematicTrips || 0}\n`
+    })
+    
+    return csv
+  }
+
+  const generateAnomaliesCSV = () => {
+    const anomalyData = anomalies || []
+    let csv = 'Trip ID,Route ID,Description,Severity,Detection Time\n'
+    
+    anomalyData.forEach(anomaly => {
+      csv += `"${anomaly.trip_id}","${anomaly.route_id}","${anomaly.description}","${anomaly.severity}","${anomaly.detected_at || new Date().toISOString()}"\n`
+    })
+    
+    return csv
+  }
+
+  const generatePerformanceHTML = () => {
+    const routes = problematicRoutes?.routes || []
+    const avgDelay = routes.reduce((sum, r) => sum + (r.averageDelay || 0), 0) / (routes.length || 1)
+    const onTimePercent = routes.reduce((sum, r) => sum + (r.onTimePercentage || 0), 0) / (routes.length || 1)
+    
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Performance Report - ${dateRange}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .metrics { display: flex; justify-content: space-around; margin-bottom: 30px; }
+          .metric { text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f2f2f2; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Performance Report</h1>
+          <p>Period: ${dateRange}</p>
+          <p>Generated: ${new Date().toLocaleString()}</p>
+        </div>
+        
+        <div class="metrics">
+          <div class="metric">
+            <h3>Total Routes</h3>
+            <h2>${routes.length}</h2>
+          </div>
+          <div class="metric">
+            <h3>Average Delay</h3>
+            <h2>${avgDelay.toFixed(1)} min</h2>
+          </div>
+          <div class="metric">
+            <h3>On-Time %</h3>
+            <h2>${onTimePercent.toFixed(1)}%</h2>
+          </div>
+        </div>
+        
+        <h2>Route Performance Details</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Route Name</th>
+              <th>Route Code</th>
+              <th>Average Delay</th>
+              <th>Total Trips</th>
+              <th>On-Time %</th>
+              <th>Problematic Trips</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${routes.map(route => `
+              <tr>
+                <td>${route.name}</td>
+                <td>${route.routeCode}</td>
+                <td>${(route.averageDelay || 0).toFixed(1)} min</td>
+                <td>${route.totalTrips || 0}</td>
+                <td>${(route.onTimePercentage || 0).toFixed(1)}%</td>
+                <td>${route.problematicTrips || 0}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `
+  }
+
+  const generateDelaysHTML = () => {
+    const delayData = delays?.delays || []
+    
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Delay Analysis Report - ${dateRange}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .summary { display: flex; justify-content: space-around; margin-bottom: 30px; }
+          .summary-item { text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f2f2f2; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Delay Analysis Report</h1>
+          <p>Period: ${dateRange}</p>
+          <p>Generated: ${new Date().toLocaleString()}</p>
+        </div>
+        
+        <div class="summary">
+          <div class="summary-item">
+            <h3>Total Records</h3>
+            <h2>${delayData.length}</h2>
+          </div>
+          <div class="summary-item">
+            <h3>On-time (≤5 min)</h3>
+            <h2>${delayData.filter(d => d.averageDelay <= 5).length}</h2>
+          </div>
+          <div class="summary-item">
+            <h3>Severe (>15 min)</h3>
+            <h2>${delayData.filter(d => d.averageDelay > 15).length}</h2>
+          </div>
+        </div>
+        
+        <h2>Delay Details</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Route</th>
+              <th>Route Code</th>
+              <th>Hour</th>
+              <th>Trip Count</th>
+              <th>Average Delay</th>
+              <th>Max Delay</th>
+              <th>Problematic Trips</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${delayData.map(delay => `
+              <tr>
+                <td>${delay.route?.name}</td>
+                <td>${delay.route?.code}</td>
+                <td>${delay.hour}</td>
+                <td>${delay.tripCount}</td>
+                <td>${(delay.averageDelay || 0).toFixed(1)} min</td>
+                <td>${(delay.maxDelay || 0).toFixed(1)} min</td>
+                <td>${delay.problematicTrips || 0}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `
+  }
+
+  const generateRoutesHTML = () => {
+    const routes = problematicRoutes?.routes || []
+    
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Route Performance Report - ${dateRange}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .header { text-align: center; margin-bottom: 30px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f2f2f2; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Route Performance Report</h1>
+          <p>Period: ${dateRange}</p>
+          <p>Generated: ${new Date().toLocaleString()}</p>
+        </div>
+        
+        <h2>Route Performance Details</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Route Name</th>
+              <th>Route Code</th>
+              <th>Color</th>
+              <th>Average Delay</th>
+              <th>Max Delay</th>
+              <th>Total Trips</th>
+              <th>On-Time Trips</th>
+              <th>On-Time %</th>
+              <th>Problematic Trips</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${routes.map(route => `
+              <tr>
+                <td>${route.name}</td>
+                <td>${route.routeCode}</td>
+                <td><span style="display: inline-block; width: 20px; height: 20px; background-color: ${route.color};"></span></td>
+                <td>${(route.averageDelay || 0).toFixed(1)} min</td>
+                <td>${(route.maxDelay || 0).toFixed(1)} min</td>
+                <td>${route.totalTrips || 0}</td>
+                <td>${route.onTimeTrips || 0}</td>
+                <td>${(route.onTimePercentage || 0).toFixed(1)}%</td>
+                <td>${route.problematicTrips || 0}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `
+  }
+
+  const generateAnomaliesHTML = () => {
+    const anomalyData = anomalies || []
+    
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Anomaly Report - ${dateRange}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .summary { text-align: center; margin-bottom: 30px; }
+          .severity-critical { color: #dc3545; font-weight: bold; }
+          .severity-high { color: #fd7e14; font-weight: bold; }
+          .severity-medium { color: #ffc107; font-weight: bold; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f2f2f2; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Anomaly Report</h1>
+          <p>Period: ${dateRange}</p>
+          <p>Generated: ${new Date().toLocaleString()}</p>
+        </div>
+        
+        <div class="summary">
+          <h2>Total Anomalies: ${anomalyData.length}</h2>
+        </div>
+        
+        <h2>Anomaly Details</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Trip ID</th>
+              <th>Route ID</th>
+              <th>Description</th>
+              <th>Severity</th>
+              <th>Detection Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${anomalyData.map(anomaly => `
+              <tr>
+                <td>${anomaly.trip_id}</td>
+                <td>${anomaly.route_id}</td>
+                <td>${anomaly.description}</td>
+                <td class="severity-${anomaly.severity}">${anomaly.severity.toUpperCase()}</td>
+                <td>${anomaly.detected_at || new Date().toISOString()}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `
   }
 
   const downloadReport = (reportId) => {

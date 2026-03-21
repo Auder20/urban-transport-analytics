@@ -1,13 +1,17 @@
 import { useState, useCallback, useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useAllBuses, useDeleteBus } from '@/hooks/useBuses'
 import { Plus, Search, Filter, Edit, Trash2, Eye } from 'lucide-react'
 import toast from 'react-hot-toast'
+import EditModal from '@/components/shared/EditModal'
+import api from '@/services/api'
 
 export default function BusesList() {
   const { canEdit } = usePermissions()
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  const [editingBus, setEditingBus] = useState(null)
 
   const [debouncedSearch, setDebouncedSearch] = useState('')
 
@@ -25,7 +29,39 @@ export default function BusesList() {
   const buses = data?.buses || []
   const pagination = data?.pagination
 
+  const queryClient = useQueryClient()
   const { mutate: deleteBus, isPending: deleting } = useDeleteBus()
+
+  const { mutate: updateBus, isPending: updating } = useMutation({
+    mutationFn: async (busData) => {
+      const { id, ...updateData } = busData
+      return api.put(`/buses/${id}`, updateData)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['buses'])
+      toast.success('Bus updated successfully')
+      setEditingBus(null)
+    },
+    onError: () => {
+      toast.error('Failed to update bus')
+    }
+  })
+
+  const handleEdit = (bus) => {
+    setEditingBus({
+      id: bus.id,
+      plateNumber: bus.plateNumber || '',
+      model: bus.model || '',
+      capacity: bus.capacity || '',
+      status: bus.status || 'active',
+      currentRouteId: bus.currentRouteId || ''
+    })
+  }
+
+  const handleSaveBus = (e) => {
+    e.preventDefault()
+    updateBus(editingBus)
+  }
 
   const handleDelete = (bus) => {
     if (!window.confirm(`Deactivate bus ${bus.plateNumber}? It will be marked as inactive.`)) return
@@ -197,7 +233,10 @@ export default function BusesList() {
                       {canEdit && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center gap-2">
-                            <button className="text-primary-600 hover:text-primary-900">
+                            <button 
+                              onClick={() => handleEdit(bus)}
+                              className="text-primary-600 hover:text-primary-900"
+                            >
                               <Edit size={16} />
                             </button>
                             <button
@@ -240,6 +279,86 @@ export default function BusesList() {
             </div>
           )}
         </div>
+
+      {/* Edit Bus Modal */}
+      <EditModal
+        isOpen={!!editingBus}
+        onClose={() => setEditingBus(null)}
+        title="Edit Bus"
+        isLoading={updating}
+      >
+        <form id="edit-form" onSubmit={handleSaveBus} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Plate Number
+            </label>
+            <input
+              type="text"
+              value={editingBus?.plateNumber || ''}
+              onChange={(e) => setEditingBus(prev => ({ ...prev, plateNumber: e.target.value }))}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-gray-100"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Model
+            </label>
+            <input
+              type="text"
+              value={editingBus?.model || ''}
+              onChange={(e) => setEditingBus(prev => ({ ...prev, model: e.target.value }))}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-gray-100"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Capacity
+            </label>
+            <input
+              type="number"
+              value={editingBus?.capacity || ''}
+              onChange={(e) => setEditingBus(prev => ({ ...prev, capacity: parseInt(e.target.value) || 0 }))}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-gray-100"
+              min="1"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Status
+            </label>
+            <select
+              value={editingBus?.status || 'active'}
+              onChange={(e) => setEditingBus(prev => ({ ...prev, status: e.target.value }))}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-gray-100"
+              required
+            >
+              <option value="active">Active</option>
+              <option value="maintenance">Maintenance</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Current Route
+            </label>
+            <select
+              value={editingBus?.currentRouteId || ''}
+              onChange={(e) => setEditingBus(prev => ({ ...prev, currentRouteId: e.target.value }))}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-gray-100"
+            >
+              <option value="">No Route Assigned</option>
+              {/* This would be populated with actual routes */}
+            </select>
+          </div>
+        </form>
+      </EditModal>
     </div>
   )
 }

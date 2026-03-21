@@ -92,9 +92,16 @@ class AuthController {
         [userId]
       );
 
+      // Set refresh token as HttpOnly cookie
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      });
+
       res.json({
         accessToken,
-        refreshToken,
         user: {
           id: userId,
           email: user.email,
@@ -122,6 +129,9 @@ class AuthController {
       
       // Invalidate session in Redis
       await cacheService.delete(sessionKey);
+
+      // Clear HttpOnly refresh token cookie
+      res.clearCookie('refreshToken');
 
       res.json({
         message: 'Logged out successfully'
@@ -219,6 +229,21 @@ class AuthController {
         { expiresIn: '15m' }
       );
 
+      // Generate new refresh token
+      const newRefreshToken = jwt.sign(
+        { userId },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      // Set new refresh token as HttpOnly cookie
+      res.cookie('refreshToken', newRefreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      });
+
       res.json({
         accessToken,
         user: {
@@ -241,7 +266,10 @@ class AuthController {
 
   async register(req, res) {
     try {
-      const { email, password, fullName, role } = registerSchema.parse(req.body);
+      const { email, password, fullName } = registerSchema.parse(req.body);
+
+      // Force role to 'viewer' for self-registration (ignore any role from request body)
+      const role = 'viewer';
 
       // Check if user already exists
       const existingUser = await pool.query(
@@ -487,10 +515,6 @@ class AuthController {
       await pool.query('BEGIN');
 
       try {
-        // Delete user sessions from cache
-        const sessionKey = `session:${userId}`;
-        await cacheService.del(sessionKey);
-
         // Delete user from database (soft delete by setting is_active = false)
         const updateUserQuery = `
           UPDATE users 
@@ -501,6 +525,10 @@ class AuthController {
 
         // Commit transaction
         await pool.query('COMMIT');
+
+        // Delete user sessions from cache (outside transaction)
+        const sessionKey = `session:${userId}`;
+        await cacheService.delete(sessionKey);
 
         res.json({
           message: 'Account deleted successfully',

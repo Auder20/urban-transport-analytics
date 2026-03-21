@@ -1,13 +1,17 @@
 import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useAllStations } from '@/hooks/useStations'
 import { Plus, Search, Filter, Edit, Trash2, MapPin } from 'lucide-react'
 import toast from 'react-hot-toast'
+import EditModal from '@/components/shared/EditModal'
+import api from '@/services/api'
 
 export default function StationsList() {
   const { canEdit } = usePermissions()
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  const [editingStation, setEditingStation] = useState(null)
 
   const [page, setPage] = useState(1)
   const [typeFilter, setTypeFilter] = useState('')
@@ -16,6 +20,40 @@ export default function StationsList() {
   })
   const stations = data?.stations || []
   const pagination = data?.pagination
+
+  const queryClient = useQueryClient()
+
+  const { mutate: updateStation, isPending: updating } = useMutation({
+    mutationFn: async (stationData) => {
+      const { id, ...updateData } = stationData
+      return api.put(`/stations/${id}`, updateData)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['stations'])
+      toast.success('Station updated successfully')
+      setEditingStation(null)
+    },
+    onError: () => {
+      toast.error('Failed to update station')
+    }
+  })
+
+  const handleEdit = (station) => {
+    setEditingStation({
+      id: station.id,
+      name: station.name || '',
+      code: station.stationCode || '',
+      lat: station.location?.lat || '',
+      lng: station.location?.lng || '',
+      address: station.address || '',
+      isActive: station.isActive || true
+    })
+  }
+
+  const handleSaveStation = (e) => {
+    e.preventDefault()
+    updateStation(editingStation)
+  }
 
   const filteredStations = stations
 
@@ -189,8 +227,8 @@ export default function StationsList() {
                       {canEdit && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => toast('Edit station — coming soon', { icon: '✏️' })}
+                            <button 
+                              onClick={() => handleEdit(station)}
                               className="text-primary-600 hover:text-primary-900"
                             >
                               <Edit size={16} />
@@ -234,6 +272,99 @@ export default function StationsList() {
             </div>
           )}
         </div>
+
+      {/* Edit Station Modal */}
+      <EditModal
+        isOpen={!!editingStation}
+        onClose={() => setEditingStation(null)}
+        title="Edit Station"
+        isLoading={updating}
+      >
+        <form id="edit-form" onSubmit={handleSaveStation} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Station Name
+            </label>
+            <input
+              type="text"
+              value={editingStation?.name || ''}
+              onChange={(e) => setEditingStation(prev => ({ ...prev, name: e.target.value }))}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-gray-100"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Station Code
+            </label>
+            <input
+              type="text"
+              value={editingStation?.code || ''}
+              onChange={(e) => setEditingStation(prev => ({ ...prev, code: e.target.value }))}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-gray-100"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Latitude
+              </label>
+              <input
+                type="number"
+                step="any"
+                value={editingStation?.lat || ''}
+                onChange={(e) => setEditingStation(prev => ({ ...prev, lat: parseFloat(e.target.value) || 0 }))}
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-gray-100"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Longitude
+              </label>
+              <input
+                type="number"
+                step="any"
+                value={editingStation?.lng || ''}
+                onChange={(e) => setEditingStation(prev => ({ ...prev, lng: parseFloat(e.target.value) || 0 }))}
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-gray-100"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Address
+            </label>
+            <input
+              type="text"
+              value={editingStation?.address || ''}
+              onChange={(e) => setEditingStation(prev => ({ ...prev, address: e.target.value }))}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-gray-100"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Status
+            </label>
+            <select
+              value={editingStation?.isActive ? 'true' : 'false'}
+              onChange={(e) => setEditingStation(prev => ({ ...prev, isActive: e.target.value === 'true' }))}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-gray-100"
+              required
+            >
+              <option value="true">Active</option>
+              <option value="false">Inactive</option>
+            </select>
+          </div>
+        </form>
+      </EditModal>
     </div>
   )
 }

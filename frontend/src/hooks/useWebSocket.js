@@ -1,38 +1,51 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { io } from 'socket.io-client'
 import { useAppStore } from '@/store/useAppStore'
 
-export function useBusLocationSocket(onUpdate) {
-  const { token } = useAppStore()
+export function useWebSocket() {
+  const [isConnected, setIsConnected] = useState(false)
+  const [notifications, setNotifications] = useState([])
   const socketRef = useRef(null)
-  const onUpdateRef = useRef(onUpdate)
+  const { token } = useAppStore()
 
   useEffect(() => {
-    onUpdateRef.current = onUpdate
-  }, [onUpdate])
+    if (!token) return
 
-  useEffect(() => {
-    const WS_URL = import.meta.env.VITE_WS_URL || window.location.origin
-
-    socketRef.current = io(WS_URL, {
+    // Initialize WebSocket connection
+    const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3001'
+    const socket = io(WS_URL, {
       auth: { token },
       transports: ['websocket', 'polling']
     })
+    socketRef.current = socket
 
-    socketRef.current.on('bus:location:update', (data) => {
-      onUpdateRef.current(data)
+    socket.on('connect', () => {
+      console.log('🔌 WebSocket connected')
+      setIsConnected(true)
     })
 
-    socketRef.current.on('connect', () => {
-      console.log('🔌 Connected to WebSocket server')
+    socket.on('authenticated', (data) => {
+      console.log('✅ WebSocket authenticated', data)
     })
 
-    socketRef.current.on('disconnect', () => {
-      console.log('🔌 Disconnected from WebSocket server')
+    socket.on('notification:new', (notification) => {
+      console.log('📬 New notification received:', notification)
+      setNotifications(prev => [notification, ...prev.slice(0, 49)]) // Keep only last 50
     })
 
-    socketRef.current.on('connect_error', (error) => {
+    socket.on('auth_error', (error) => {
+      console.error('❌ WebSocket authentication failed:', error)
+    })
+
+    socket.on('disconnect', () => {
+      console.log('🔌 WebSocket disconnected')
+      setIsConnected(false)
+      socketRef.current = null
+    })
+
+    socket.on('connect_error', (error) => {
       console.error('🔌 WebSocket connection error:', error)
+      setIsConnected(false)
     })
 
     return () => {
@@ -40,5 +53,9 @@ export function useBusLocationSocket(onUpdate) {
     }
   }, [token])
 
-  return socketRef
+  return {
+    isConnected,
+    notifications,
+    socket: socketRef.current
+  }
 }

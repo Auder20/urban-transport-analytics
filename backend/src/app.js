@@ -45,6 +45,26 @@ global.io = io;
 io.on('connection', (socket) => {
   console.log('🔌 Client connected to WebSocket:', socket.id);
   
+  // Handle authentication for WebSocket connections
+  socket.on('auth', async (token) => {
+    try {
+      const jwt = require('jsonwebtoken');
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      
+      // Join user to their personal room for targeted notifications
+      const userRoom = `user:${decoded.userId}`;
+      socket.join(userRoom);
+      socket.userId = decoded.userId;
+      socket.emit('authenticated', { userId: decoded.userId });
+      
+      console.log(`👤 User ${decoded.userId} authenticated and joined room ${userRoom}`);
+    } catch (error) {
+      console.error('WebSocket authentication error:', error);
+      socket.emit('auth_error', { error: 'Invalid token' });
+      socket.disconnect();
+    }
+  });
+  
   socket.on('disconnect', () => {
     console.log('🔌 Client disconnected from WebSocket:', socket.id);
   });

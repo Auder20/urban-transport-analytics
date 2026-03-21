@@ -67,7 +67,7 @@ export default function Settings() {
   
   const handleSaveProfile = async () => {
     try {
-      await api.put('/api/auth/profile', profileForm)
+      await api.put('/auth/profile', profileForm)
       toast.success('Profile updated')
     } catch (error) {
       toast.error('Error updating profile')
@@ -81,7 +81,7 @@ export default function Settings() {
     }
     
     try {
-      await api.put('/api/auth/password', {
+      await api.put('/auth/password', {
         currentPassword: passwordForm.currentPassword,
         newPassword: passwordForm.newPassword
       })
@@ -94,7 +94,7 @@ export default function Settings() {
   
   const handleExportData = async () => {
     try {
-      const response = await api.get('/api/auth/export-data')
+      const response = await api.get('/auth/export-data')
       const dataStr = JSON.stringify(response.data, null, 2)
       const dataBlob = new Blob([dataStr], { type: 'application/json' })
       const url = URL.createObjectURL(dataBlob)
@@ -116,7 +116,7 @@ export default function Settings() {
     )
     if (confirmation) {
       try {
-        await api.delete('/api/auth/account')
+        await api.delete('/auth/account')
         toast.success('Account deleted successfully')
         logout()
         navigate('/login')

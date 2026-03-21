@@ -29,19 +29,26 @@ function App() {
   const { theme } = useAppStore()
 
   useEffect(() => {
-    if (theme === 'dark') {
+  const applyTheme = (dark) => {
+    if (dark) {
       document.documentElement.classList.add('dark')
-    } else if (theme === 'light') {
+    } else {
       document.documentElement.classList.remove('dark')
-    } else if (theme === 'auto') {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-      if (prefersDark) {
-        document.documentElement.classList.add('dark')
-      } else {
-        document.documentElement.classList.remove('dark')
-      }
     }
-  }, [theme])
+  }
+
+  if (theme === 'dark') {
+    applyTheme(true)
+  } else if (theme === 'light') {
+    applyTheme(false)
+  } else if (theme === 'auto') {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    applyTheme(mq.matches)
+    const handler = (e) => applyTheme(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }
+}, [theme])
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

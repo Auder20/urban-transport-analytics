@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import TransportMap from '@/components/Map/TransportMap'
 import { FullScreenLayout } from '@/components/Layout/PageLayout'
 import { useBusLocations } from '@/hooks/useBusLocations'
-import { useBusLocationSocket } from '@/hooks/useWebSocket'
+import { useWebSocket } from '@/hooks/useWebSocket'
 import { useRoutes } from '@/hooks/useRoutes'
 import { useAppStore } from '@/store/useAppStore'
 import { Filter, Layers, Maximize2, Minimize2 } from 'lucide-react'
@@ -37,7 +37,18 @@ export default function LiveMap() {
     }))
   }, [])
 
-  useBusLocationSocket(handleBusUpdate)
+  const { socket } = useWebSocket()
+
+  // Set up WebSocket listener for bus location updates
+  useEffect(() => {
+    if (!socket) return
+    
+    socket.on('bus:location:update', handleBusUpdate)
+    
+    return () => {
+      socket.off('bus:location:update', handleBusUpdate)
+    }
+  }, [socket, handleBusUpdate])
 
   const routes = routesData?.routes || []
   const activeBuses = buses?.filter(bus => bus.status === 'active') || []

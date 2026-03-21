@@ -16,8 +16,8 @@ class AnalyticsController {
         recentTripsResult
       ] = await Promise.all([
         pool.query('SELECT COUNT(*) as count FROM buses'),
-        pool.query('SELECT COUNT(*) as count FROM buses WHERE status = \'active\' AND last_seen_at > NOW() - INTERVAL \'5 minutes\''),
-        pool.query('SELECT COUNT(*) as count FROM routes WHERE status = \'active\''),
+        pool.query('SELECT COUNT(*) as count FROM buses WHERE status = $1 AND last_seen_at > NOW() - MAKE_INTERVAL(minutes => $2)', ['active', 5]),
+        pool.query('SELECT COUNT(*) as count FROM routes WHERE status = $1', ['active']),
         pool.query('SELECT COUNT(*) as count FROM trips WHERE started_at >= CURRENT_DATE'),
         pool.query(`
           SELECT 
@@ -109,7 +109,14 @@ class AnalyticsController {
 
   async getHeatmap(req, res) {
     try {
-      const hours = parseInt(req.query.hours) || 1;
+      const hours = Math.max(1, Math.min(168, parseInt(req.query.hours) || 1));
+
+      if (isNaN(hours)) {
+        return res.status(400).json({
+          error: 'Invalid hours parameter',
+          code: 'INVALID_PARAMETER'
+        });
+      }
 
       const query = `
         SELECT 
@@ -124,11 +131,11 @@ class AnalyticsController {
         WHERE b.status = 'active'
           AND b.last_lat IS NOT NULL
           AND b.last_lng IS NOT NULL
-          AND b.last_seen_at > NOW() - INTERVAL '${hours} hours'
+          AND b.last_seen_at > NOW() - MAKE_INTERVAL(hours => $1)
         ORDER BY b.last_seen_at DESC
       `;
 
-      const result = await pool.query(query);
+      const result = await pool.query(query, [hours]);
 
       const heatmapData = result.rows.map(bus => ({
         lat: parseFloat(bus.last_lat),
@@ -155,7 +162,14 @@ class AnalyticsController {
 
   async getProblematicRoutes(req, res) {
     try {
-      const days = parseInt(req.query.days) || 7;
+      const days = Math.max(1, Math.min(90, parseInt(req.query.days) || 7));
+
+      if (isNaN(days)) {
+        return res.status(400).json({
+          error: 'Invalid days parameter',
+          code: 'INVALID_PARAMETER'
+        });
+      }
 
       const query = `
         SELECT 
@@ -171,14 +185,14 @@ class AnalyticsController {
           (COUNT(CASE WHEN t.delay_minutes <= 5 THEN 1 END)::FLOAT / COUNT(t.id)) * 100 as on_time_percentage
         FROM routes r
         LEFT JOIN trips t ON r.id = t.route_id 
-          AND t.started_at >= NOW() - INTERVAL '${days} days'
+          AND t.started_at >= NOW() - MAKE_INTERVAL(days => $1)
         WHERE r.status = 'active'
         GROUP BY r.id, r.route_code, r.name, r.color
         HAVING COUNT(t.id) > 0
         ORDER BY avg_delay DESC NULLS LAST
       `;
 
-      const result = await pool.query(query);
+      const result = await pool.query(query, [days]);
 
       const problematicRoutes = result.rows.map(route => ({
         id: route.id,
@@ -204,15 +218,23 @@ class AnalyticsController {
 
   async getPeakHours(req, res) {
     try {
-      const days = parseInt(req.query.days) || 7;
+      const days = Math.max(1, Math.min(90, parseInt(req.query.days) || 7));
       const routeId = req.query.route;
 
-      let whereClause = 'WHERE t.started_at >= NOW() - INTERVAL \'${days} days\'';
-      let queryParams = [];
+      if (isNaN(days)) {
+        return res.status(400).json({
+          error: 'Invalid days parameter',
+          code: 'INVALID_PARAMETER'
+        });
+      }
+
+      // Build parameterized query with proper bound parameters
+      let queryParams = [days];
+      let conditions = ['t.started_at >= NOW() - MAKE_INTERVAL(days => $1)'];
 
       if (routeId) {
-        whereClause += ' AND t.route_id = $1';
         queryParams.push(routeId);
+        conditions.push(`t.route_id = $${queryParams.length}`);
       }
 
       const query = `
@@ -223,7 +245,7 @@ class AnalyticsController {
           COUNT(CASE WHEN t.delay_minutes > 15 THEN 1 END) as problematic_trips,
           AVG(t.passenger_count) as avg_passengers
         FROM trips t
-        ${whereClause.replace('${days}', days)}
+        WHERE ${conditions.join(' AND ')}
         GROUP BY EXTRACT(HOUR FROM t.started_at)
         ORDER BY hour_of_day
       `;

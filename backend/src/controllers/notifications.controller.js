@@ -7,6 +7,10 @@ class NotificationsController {
       const limit = parseInt(req.query.limit) || 20;
       const offset = parseInt(req.query.offset) || 0;
 
+      // Get total count of notifications for this user
+      const countQuery = `SELECT COUNT(*) as total FROM notifications WHERE user_id = $1`;
+      const countResult = await pool.query(countQuery, [userId]);
+
       const query = `
         SELECT 
           id,
@@ -32,13 +36,16 @@ class NotificationsController {
       `;
       const unreadResult = await pool.query(unreadQuery, [userId]);
 
+      const totalNotifications = parseInt(countResult.rows[0].total);
+
       res.json({
         notifications: result.rows,
         unreadCount: parseInt(unreadResult.rows[0].unread_count),
         pagination: {
           limit,
           offset,
-          total: result.rows.length
+          total: totalNotifications,
+          hasMore: offset + result.rows.length < totalNotifications
         }
       });
     } catch (error) {
@@ -138,6 +145,59 @@ class NotificationsController {
       res.status(500).json({
         error: 'Failed to delete notification',
         code: 'DELETE_NOTIFICATION_ERROR'
+      });
+    }
+  }
+
+  async createNotification(req, res) {
+    try {
+      const userId = req.user.userId;
+      const { title, message, type } = req.body;
+
+      if (!title || !message || !type) {
+        return res.status(400).json({
+          error: 'Title, message, and type are required',
+          code: 'MISSING_FIELDS'
+        });
+      }
+
+      const query = `
+        INSERT INTO notifications (user_id, title, message, type, is_read, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, false, NOW(), NOW())
+        RETURNING id, title, message, type, is_read, created_at as "createdAt", updated_at as "updatedAt"
+      `;
+
+      const result = await pool.query(query, [userId, title, message, type]);
+      const notification = result.rows[0];
+
+      // Emit real-time notification to user's socket room
+      req.app.get('io')?.to(`user:${userId}`).emit('notification:new', {
+        id: notification.id,
+        title: notification.title,
+        message: notification.message,
+        type: notification.type,
+        is_read: notification.is_read,
+        created_at: notification.createdAt,
+        updated_at: notification.updatedAt
+      });
+
+      res.status(201).json({
+        message: 'Notification created successfully',
+        notification: {
+          id: notification.id,
+          title: notification.title,
+          message: notification.message,
+          type: notification.type,
+          is_read: notification.is_read,
+          createdAt: notification.createdAt,
+          updatedAt: notification.updatedAt
+        }
+      });
+    } catch (error) {
+      console.error('Create notification error:', error);
+      res.status(500).json({
+        error: 'Failed to create notification',
+        code: 'CREATE_NOTIFICATION_ERROR'
       });
     }
   }

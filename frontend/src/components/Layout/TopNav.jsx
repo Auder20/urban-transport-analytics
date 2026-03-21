@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { Bell, Search, User, Settings, LogOut, Bus, Route, MapPin } from 'lucide-react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAppStore } from '@/store/useAppStore'
@@ -9,7 +10,15 @@ import { useNotifications } from '@/hooks/useNotifications'
 export default function TopNav({ title }) {
   const { user, logout } = useAppStore()
   const navigate = useNavigate()
-  const { data: notificationsData, isLoading: notificationsLoading } = useNotifications()
+  const queryClient = useQueryClient()
+  const { 
+    data: notificationsData, 
+    isLoading: notificationsLoading,
+    loadMore,
+    hasMore,
+    notifications,
+    unreadCount
+  } = useNotifications()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -18,8 +27,21 @@ export default function TopNav({ title }) {
   const [searchLoading, setSearchLoading] = useState(false)
   const searchTimeoutRef = useRef(null)
 
-  const notifications = notificationsData?.notifications || []
-  const unreadCount = notificationsData?.unreadCount || 0
+  // React Query mutation for marking individual notifications as read
+  const { mutate: markAsRead } = useMutation({
+    mutationFn: (id) => api.put(`/api/notifications/${id}/read`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    }
+  })
+
+  // React Query mutation for marking all notifications as read
+  const { mutate: markAllAsRead } = useMutation({
+    mutationFn: () => api.put('/api/notifications/read-all'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    }
+  })
 
   // Debounced search function
   const performSearch = useCallback(async (query) => {
@@ -83,15 +105,6 @@ export default function TopNav({ title }) {
   const handleNavigateToSettings = () => {
     navigate('/settings')
     setShowUserMenu(false)
-  }
-
-  const handleMarkAsRead = async (notificationId) => {
-    try {
-      await api.put(`/api/notifications/${notificationId}/read`)
-      // Refetch notifications will happen automatically due to React Query
-    } catch (error) {
-      console.error('Failed to mark notification as read:', error)
-    }
   }
 
   return (
@@ -237,42 +250,68 @@ export default function TopNav({ title }) {
                         Loading notifications...
                       </div>
                     ) : notifications.length > 0 ? (
-                      notifications.map((notification) => (
-                        <div 
-                          key={notification.id} 
-                          className={`p-4 border-b border-gray-100 hover:bg-gray-50 ${!notification.is_read ? 'bg-blue-50' : ''}`}
-                          onClick={() => !notification.is_read && handleMarkAsRead(notification.id)}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className={`w-2 h-2 rounded-full mt-2 ${
-                              notification.type === 'error' ? 'bg-red-500' :
-                              notification.type === 'warning' ? 'bg-yellow-500' :
-                              notification.type === 'success' ? 'bg-green-500' :
-                              'bg-gray-400'
-                            }`}></div>
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-gray-900">{notification.title}</p>
-                              <p className="text-xs text-gray-500 mt-1">{notification.message}</p>
-                              <p className="text-xs text-gray-400 mt-1">
-                                {new Date(notification.createdAt).toLocaleString()}
-                              </p>
+                      <>
+                        {notifications.map((notification) => (
+                          <div 
+                            key={notification.id} 
+                            className={`p-4 border-b border-gray-100 hover:bg-gray-50 ${!notification.is_read ? 'bg-blue-50' : ''}`}
+                            onClick={() => !notification.is_read && markAsRead.mutate(notification.id)}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className={`w-2 h-2 rounded-full mt-2 ${
+                                notification.type === 'error' ? 'bg-red-500' :
+                                notification.type === 'warning' ? 'bg-yellow-500' :
+                                notification.type === 'success' ? 'bg-green-500' :
+                                'bg-gray-400'
+                              }`}></div>
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-gray-900">{notification.title}</p>
+                                <p className="text-xs text-gray-500 mt-1">{notification.message}</p>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {new Date(notification.createdAt).toLocaleString()}
+                                </p>
+                              </div>
+                              {!notification.is_read && (
+                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                              )}
                             </div>
-                            {!notification.is_read && (
-                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                            )}
                           </div>
-                        </div>
-                      ))
+                        ))}
+                        
+                        {/* Load more button */}
+                        {hasMore && (
+                          <div className="p-3 border-b border-gray-100">
+                            <button
+                              onClick={loadMore}
+                              className="w-full text-center text-sm text-primary-600 hover:text-primary-800 font-medium py-2 px-4 rounded border border-primary-200 hover:bg-primary-50"
+                            >
+                              Load more notifications
+                            </button>
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <div className="p-4 text-center text-sm text-gray-500">
                         No notifications
                       </div>
                     )}
                   </div>
-                  <div className="p-4 border-t border-gray-200">
-                    <button className="text-sm text-primary-600 hover:text-primary-800 font-medium">
+                  <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                    <Link 
+                      to="/notifications" 
+                      className="text-sm text-primary-600 hover:text-primary-800 font-medium"
+                      onClick={() => setShowNotifications(false)}
+                    >
                       View all notifications
-                    </button>
+                    </Link>
+                    {unreadCount > 0 && (
+                      <button 
+                        onClick={markAllAsRead.mutate}
+                        className="text-sm text-gray-600 hover:text-gray-800 font-medium"
+                      >
+                        Mark all as read
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

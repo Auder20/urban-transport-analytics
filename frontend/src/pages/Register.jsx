@@ -9,13 +9,73 @@ export default function Register() {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
-    password: '',
-    role: 'viewer'
+    password: ''
   })
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [errors, setErrors] = useState({})
   const [success, setSuccess] = useState('')
+
+  // Email validation
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
+
+  // Password validation
+  const validatePassword = (password) => {
+    return password.length >= 6
+  }
+
+  // Name validation
+  const validateName = (name) => {
+    return name.trim().length >= 2
+  }
+
+  // Validate individual fields
+  const validateField = (name, value) => {
+    let error = ''
+    
+    if (name === 'fullName') {
+      if (!value) {
+        error = 'Full name is required'
+      } else if (!validateName(value)) {
+        error = 'Full name must be at least 2 characters'
+      }
+    } else if (name === 'email') {
+      if (!value) {
+        error = 'Email is required'
+      } else if (!validateEmail(value)) {
+        error = 'Please enter a valid email address'
+      }
+    } else if (name === 'password') {
+      if (!value) {
+        error = 'Password is required'
+      } else if (!validatePassword(value)) {
+        error = 'Password must be at least 6 characters'
+      }
+    }
+    
+    setErrors(prev => ({
+      ...prev,
+      [name]: error
+    }))
+    
+    return !error
+  }
+
+  // Password confirmation
+  const [confirmPassword, setConfirmPassword] = useState('')
+
+  // Validate entire form
+  const validateForm = () => {
+    const nameValid = validateField('fullName', formData.fullName)
+    const emailValid = validateField('email', formData.email)
+    const passwordValid = validateField('password', formData.password)
+    const passwordsMatch = formData.password === confirmPassword
+    
+    return nameValid && emailValid && passwordValid && passwordsMatch
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -23,23 +83,26 @@ export default function Register() {
       ...prev,
       [name]: value
     }))
-    // Clear messages when user starts typing
-    if (error) setError('')
-    if (success) setSuccess('')
+    
+    // Clear error for this field when user starts typing
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }))
+    }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setIsLoading(true)
-    setError('')
-    setSuccess('')
-
-    // Basic validation
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long')
-      setIsLoading(false)
+    
+    if (!validateForm()) {
       return
     }
+    
+    setIsLoading(true)
+    setErrors({})
+    setSuccess('')
 
     try {
       await api.post('/auth/register', formData)
@@ -51,7 +114,7 @@ export default function Register() {
       }, 2000)
     } catch (err) {
       const errorMessage = err.response?.data?.error || 'Registration failed. Please try again.'
-      setError(errorMessage)
+      setErrors({ form: errorMessage })
     } finally {
       setIsLoading(false)
     }
@@ -84,11 +147,11 @@ export default function Register() {
               </div>
             )}
 
-            {/* Error Message */}
-            {error && (
+            {/* Form-level Error */}
+            {errors.form && (
               <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
                 <AlertCircle size={16} className="text-red-500" />
-                <span className="text-sm text-red-600">{error}</span>
+                <span className="text-sm text-red-600">{errors.form}</span>
               </div>
             )}
 
@@ -105,9 +168,12 @@ export default function Register() {
                 required
                 value={formData.fullName}
                 onChange={handleChange}
-                className="input"
+                className={`input ${errors.fullName ? 'border-red-500 focus:ring-red-500' : ''}`}
                 placeholder="Enter your full name"
               />
+              {errors.fullName && (
+                <p className="text-sm text-red-600 mt-1">{errors.fullName}</p>
+              )}
             </div>
 
             {/* Email */}
@@ -123,9 +189,12 @@ export default function Register() {
                 required
                 value={formData.email}
                 onChange={handleChange}
-                className="input"
+                className={`input ${errors.email ? 'border-red-500 focus:ring-red-500' : ''}`}
                 placeholder="Enter your email"
               />
+              {errors.email && (
+                <p className="text-sm text-red-600 mt-1">{errors.email}</p>
+              )}
             </div>
 
             {/* Password */}
@@ -143,7 +212,7 @@ export default function Register() {
                   minLength={6}
                   value={formData.password}
                   onChange={handleChange}
-                  className="input pr-10"
+                  className={`input pr-10 ${errors.password ? 'border-red-500 focus:ring-red-500' : ''}`}
                   placeholder="Enter your password"
                 />
                 <button
@@ -158,32 +227,40 @@ export default function Register() {
                   )}
                 </button>
               </div>
+              {errors.password && (
+                <p className="text-sm text-red-600 mt-1">{errors.password}</p>
+              )}
             </div>
 
-            {/* Role */}
+            {/* Confirm Password */}
             <div>
-              <label htmlFor="role" className="label">
-                Role
+              <label htmlFor="confirmPassword" className="label">
+                Confirm Password
               </label>
-              <select
-                id="role"
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                className="input"
-                required
-              >
-                <option value="viewer">Viewer - Read-only access</option>
-                <option value="analyst">Analyst - Can view and analyze data</option>
-                <option value="operator">Operator - Can manage operations</option>
-              </select>
+              <div className="relative">
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  required
+                  minLength={6}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={`input pr-10 ${errors.confirmPassword ? 'border-red-500 focus:ring-red-500' : ''}`}
+                  placeholder="Confirm your password"
+                />
+                {errors.confirmPassword && (
+                  <p className="text-sm text-red-600 mt-1">{errors.confirmPassword}</p>
+                )}
+              </div>
             </div>
 
             {/* Submit Button */}
             <div>
               <button
                 type="submit"
-                disabled={isLoading || success}
+                disabled={isLoading || Object.keys(errors).some(key => errors[key])}
                 className="btn btn-primary w-full"
               >
                 {isLoading ? (

@@ -65,9 +65,7 @@ const useAppStore = create(
     {
       name: 'uta-storage',
       partialize: (state) => ({
-        user: state.user,
-        token: state.token,
-        refreshToken: state.refreshToken,
+        user: state.user,         // solo datos no sensibles
         theme: state.theme,
         language: state.language,
         timezone: state.timezone,
@@ -79,6 +77,7 @@ const useAppStore = create(
         filterOccupancy: state.filterOccupancy,
         mapCenter: state.mapCenter,
         mapZoom: state.mapZoom,
+        // NO incluir: token, refreshToken
       }),
     }
   )

@@ -24,18 +24,28 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - NODE_ENV=production
     depends_on:
-      postgres: { condition: service_healthy }
-      mongo:    { condition: service_started }
-      redis:    { condition: service_started }
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks: [uta-net]
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   analytics:
     build: ./analytics
     environment:
       - DATABASE_URL=postgresql://uta:secret@postgres:5432/uta_db
       - REDIS_URL=redis://redis:6379
-    depends_on: [postgres, redis]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks: [uta-net]
     restart: unless-stopped
 
@@ -56,8 +66,10 @@ services:
       - DATABASE_URL=postgresql://uta:secret@postgres:5432/uta_db
       - MONGODB_URI=mongodb://mongo:27017/uta_logs
     depends_on:
-      postgres: { condition: service_healthy }
-      mongo:    { condition: service_started }
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_started
     networks: [uta-net]
     # restart: no — runs once and exits
     profiles: [seed]
@@ -94,6 +106,11 @@ services:
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     networks: [uta-net]
     restart: unless-stopped
 
