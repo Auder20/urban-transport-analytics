@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate, Link } from 'react-router-dom'
 import { useEffect } from 'react'
+import axios from 'axios'
 import { useAppStore } from '@/store/useAppStore'
 import Layout from '@/components/Layout/PageLayout'
 import Dashboard from '@/pages/Dashboard'
@@ -26,7 +27,17 @@ const ProtectedRoute = ({ children }) => {
 }
 
 function App() {
-  const { theme } = useAppStore()
+  const { theme, token, setToken } = useAppStore()
+
+  // Silent refresh on app mount
+  useEffect(() => {
+    const { token: currentToken, setToken } = useAppStore.getState()
+    if (!currentToken) {
+      axios.post('/api/auth/refresh', {}, { withCredentials: true })
+        .then(res => setToken(res.data.accessToken))
+        .catch(() => {}) // No hay sesión activa, el usuario verá el login
+    }
+  }, [])
 
   useEffect(() => {
   const applyTheme = (dark) => {

@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useAllTrips } from '@/hooks/useTrips'
-import { Plus, Search, Filter, Edit, Trash2, Calendar, Clock, Route } from 'lucide-react'
+import { Plus, Search, Filter, Edit, Trash2, Calendar, Clock, Route, Eye } from 'lucide-react'
 import toast from 'react-hot-toast'
+import EditModal from '@/components/shared/EditModal'
 
 export default function TripsList() {
   const { canEdit } = usePermissions()
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [viewMode, setViewMode] = useState('list') // 'list' or 'calendar'
+  const [selectedTrip, setSelectedTrip] = useState(null)
 
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('')
@@ -23,6 +25,17 @@ export default function TripsList() {
   const pagination = data?.pagination
 
   const filteredTrips = trips
+
+  const handleViewTrip = (trip) => {
+    setSelectedTrip(trip)
+  }
+
+  const getDelayBadgeColor = (delayMinutes) => {
+    if (delayMinutes == null) return 'bg-gray-100 text-gray-800'
+    if (delayMinutes <= 5) return 'bg-green-100 text-green-800'
+    if (delayMinutes <= 15) return 'bg-yellow-100 text-yellow-800'
+    return 'bg-red-100 text-red-800'
+  }
 
   return (
     <div className="space-y-6">
@@ -251,10 +264,10 @@ export default function TripsList() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => toast('Trip details — coming soon', { icon: '👁️' })}
+                              onClick={() => handleViewTrip(trip)}
                               className="text-primary-600 hover:text-primary-900"
                             >
-                              <Edit size={16} />
+                              <Eye size={16} />
                             </button>
                             <button
                               onClick={() => toast('Trips are historical records and cannot be deleted', { icon: 'ℹ️' })}
@@ -295,6 +308,141 @@ export default function TripsList() {
             </div>
           )}
         </div>
+
+      {/* Trip Details Modal */}
+      <EditModal
+        isOpen={!!selectedTrip}
+        onClose={() => setSelectedTrip(null)}
+        title="Trip Details"
+        readOnly={true}
+      >
+        {selectedTrip && (
+          <div className="space-y-6">
+            {/* Trip Info */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Trip ID
+                </label>
+                <div className="text-sm text-gray-900 dark:text-gray-100 font-mono">
+                  {selectedTrip.id}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Status
+                </label>
+                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                  selectedTrip.status === 'completed' ? 'bg-green-100 text-green-800' :
+                  selectedTrip.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                  selectedTrip.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {selectedTrip.status || 'Scheduled'}
+                </span>
+              </div>
+            </div>
+
+            {/* Route Information */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Route Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Route Code
+                  </label>
+                  <div className="text-sm text-gray-900 dark:text-gray-100">
+                    {selectedTrip.route?.code || 'N/A'}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Route Name
+                  </label>
+                  <div className="text-sm text-gray-900 dark:text-gray-100">
+                    {selectedTrip.route?.name || 'N/A'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bus Information */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Bus Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Plate Number
+                  </label>
+                  <div className="text-sm text-gray-900 dark:text-gray-100">
+                    {selectedTrip.bus?.plateNumber || 'N/A'}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Driver
+                  </label>
+                  <div className="text-sm text-gray-900 dark:text-gray-100">
+                    {selectedTrip.driver?.name || 'N/A'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Schedule */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Schedule</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Started At
+                  </label>
+                  <div className="text-sm text-gray-900 dark:text-gray-100">
+                    {selectedTrip.startedAt 
+                      ? new Date(selectedTrip.startedAt).toLocaleString()
+                      : 'N/A'
+                    }
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Completed At
+                  </label>
+                  <div className="text-sm text-gray-900 dark:text-gray-100">
+                    {selectedTrip.completedAt 
+                      ? new Date(selectedTrip.completedAt).toLocaleString()
+                      : 'N/A'
+                    }
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Performance */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Performance</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Delay
+                  </label>
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getDelayBadgeColor(selectedTrip.delayMinutes)}`}>
+                    {selectedTrip.delayMinutes != null ? `${selectedTrip.delayMinutes} min` : 'N/A'}
+                  </span>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Passenger Count
+                  </label>
+                  <div className="text-sm text-gray-900 dark:text-gray-100">
+                    {selectedTrip.passengerCount || 'N/A'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </EditModal>
     </div>
   )
 }

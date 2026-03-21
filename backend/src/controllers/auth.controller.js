@@ -177,7 +177,7 @@ class AuthController {
 
   async refreshToken(req, res) {
     try {
-      const { refreshToken } = req.body;
+      const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
 
       if (!refreshToken) {
         return res.status(400).json({
@@ -236,6 +236,22 @@ class AuthController {
         { expiresIn: '7d' }
       );
 
+      // Update session in Redis with sliding window (extend session on refresh)
+      await cacheService.set(sessionKey, {
+        userId,
+        email: user.email,
+        role: user.role,
+        loginTime: session.loginTime, // Preserve original login time
+        refreshedAt: new Date().toISOString() // Track when session was last refreshed
+      }, 7 * 24 * 60 * 60); // 7 days
+
+      // TODO: Future enhancement - Implement individual refresh token revocation
+      // Add JTI (JWT ID) to refresh token payload for granular revocation:
+      // const jti = uuidv4();
+      // const refreshToken = jwt.sign({ userId, jti }, process.env.JWT_SECRET, { expiresIn: '7d' });
+      // Store JTI in Redis with TTL: await cacheService.set(`jti:${jti}`, userId, 7 * 24 * 60 * 60);
+      // This would allow revoking specific refresh tokens while keeping others valid
+
       // Set new refresh token as HttpOnly cookie
       res.cookie('refreshToken', newRefreshToken, {
         httpOnly: true,
@@ -245,13 +261,7 @@ class AuthController {
       });
 
       res.json({
-        accessToken,
-        user: {
-          id: userId,
-          email: user.email,
-          fullName: user.full_name,
-          role: user.role
-        }
+        accessToken
       });
     } catch (error) {
       if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {

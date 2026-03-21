@@ -4,6 +4,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const morgan = require('morgan');
+const cookieParser = require('cookie-parser');
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 const { connectMongo } = require('./config/mongodb');
@@ -38,32 +39,31 @@ const io = new Server(server, {
   }
 });
 
-// Make io globally available
+// Make io globally available and accessible via app
 global.io = io;
+app.set('io', io);
 
 // Handle WebSocket connections
-io.on('connection', (socket) => {
-  console.log('🔌 Client connected to WebSocket:', socket.id);
+io.on('connection', async (socket) => {
+  console.log('🔌 Client connected:', socket.id);
   
-  // Handle authentication for WebSocket connections
-  socket.on('auth', async (token) => {
+  // Authenticate from handshake (sent by client via `auth: { token }` in io())
+  const token = socket.handshake.auth?.token;
+  if (token) {
     try {
       const jwt = require('jsonwebtoken');
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      
-      // Join user to their personal room for targeted notifications
       const userRoom = `user:${decoded.userId}`;
       socket.join(userRoom);
       socket.userId = decoded.userId;
       socket.emit('authenticated', { userId: decoded.userId });
-      
-      console.log(`👤 User ${decoded.userId} authenticated and joined room ${userRoom}`);
+      console.log(`👤 User ${decoded.userId} joined room ${userRoom}`);
     } catch (error) {
       console.error('WebSocket authentication error:', error);
       socket.emit('auth_error', { error: 'Invalid token' });
-      socket.disconnect();
+      // Optionally disconnect: socket.disconnect()
     }
-  });
+  }
   
   socket.on('disconnect', () => {
     console.log('🔌 Client disconnected from WebSocket:', socket.id);
@@ -115,6 +115,7 @@ app.use(cors({
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(cookieParser());
 app.use(generalLimiter);
 
 // Health check endpoint

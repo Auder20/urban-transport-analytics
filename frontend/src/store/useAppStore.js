@@ -45,11 +45,9 @@ const useAppStore = create(
       setMapCenter: (center) => set({ mapCenter: center }),
       setMapZoom: (zoom) => set({ mapZoom: zoom }),
       
-      // Computed
-      isAuthenticated: () => {
-        const { token } = get()
-        return !!token
-      },
+      // Note: For checking authentication, use selector pattern in components:
+      // const isAuthenticated = useAppStore(state => !!state.token)
+      // Or check user existence: const { user } = useAppStore()
       
       // Reset state
       reset: () => set({

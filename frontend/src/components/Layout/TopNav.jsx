@@ -17,7 +17,9 @@ export default function TopNav({ title }) {
     loadMore,
     hasMore,
     notifications,
-    unreadCount
+    unreadCount,
+    markAsRead,
+    markAllAsRead
   } = useNotifications()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
@@ -27,21 +29,6 @@ export default function TopNav({ title }) {
   const [searchLoading, setSearchLoading] = useState(false)
   const searchTimeoutRef = useRef(null)
 
-  // React Query mutation for marking individual notifications as read
-  const { mutate: markAsRead } = useMutation({
-    mutationFn: (id) => api.put(`/api/notifications/${id}/read`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-    }
-  })
-
-  // React Query mutation for marking all notifications as read
-  const { mutate: markAllAsRead } = useMutation({
-    mutationFn: () => api.put('/api/notifications/read-all'),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-    }
-  })
 
   // Debounced search function
   const performSearch = useCallback(async (query) => {
@@ -53,7 +40,7 @@ export default function TopNav({ title }) {
 
     setSearchLoading(true)
     try {
-      const response = await api.get(`/api/search?q=${query}`)
+      const response = await api.get(`/search?q=${query}`)
       setSearchResults(response.data)
       setShowSearchDropdown(true)
     } catch (error) {
@@ -255,7 +242,7 @@ export default function TopNav({ title }) {
                           <div 
                             key={notification.id} 
                             className={`p-4 border-b border-gray-100 hover:bg-gray-50 ${!notification.is_read ? 'bg-blue-50' : ''}`}
-                            onClick={() => !notification.is_read && markAsRead.mutate(notification.id)}
+                            onClick={() => !notification.is_read && markAsRead(notification.id)}
                           >
                             <div className="flex items-start gap-3">
                               <div className={`w-2 h-2 rounded-full mt-2 ${
@@ -306,7 +293,7 @@ export default function TopNav({ title }) {
                     </Link>
                     {unreadCount > 0 && (
                       <button 
-                        onClick={markAllAsRead.mutate}
+                        onClick={markAllAsRead}
                         className="text-sm text-gray-600 hover:text-gray-800 font-medium"
                       >
                         Mark all as read

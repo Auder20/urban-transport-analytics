@@ -28,7 +28,7 @@ export default function Schedules() {
       return api.put(`/schedules/${id}`, updateData)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['schedules'])
+      queryClient.invalidateQueries({ queryKey: ['schedules'] })
       toast.success('Schedule updated successfully')
       setEditingSchedule(null)
     },

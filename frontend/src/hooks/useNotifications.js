@@ -25,7 +25,7 @@ export function useNotifications() {
     },
     refetchInterval: 30000, // Refetch every 30 seconds
     staleTime: 10000, // Consider data stale after 10 seconds
-    keepPreviousData: true // Keep previous data while loading new page
+    placeholderData: (previousData) => previousData // Keep previous data while loading new page
   })
 
   // Merge WebSocket notifications with HTTP notifications
@@ -69,8 +69,8 @@ export function useNotifications() {
     })
 
     return () => {
-      queryClient.invalidateQueries(['notifications']),
-      socket?.emit('notification:read', { notificationId: id })
+      socket?.off('notification:new', handleNewNotification)
+      socket?.off('notification:read')
     }
   }, [isConnected, socket])
 
@@ -82,7 +82,7 @@ export function useNotifications() {
 
   const resetPagination = useCallback(() => {
     setOffset(0)
-    queryClient.invalidateQueries(['notifications'])
+    queryClient.invalidateQueries({ queryKey: ['notifications'] })
   }, [queryClient])
 
   const markAsRead = useCallback(async (notificationId) => {

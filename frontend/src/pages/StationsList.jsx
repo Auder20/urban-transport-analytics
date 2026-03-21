@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useAllStations } from '@/hooks/useStations'
 import { Plus, Search, Filter, Edit, Trash2, MapPin } from 'lucide-react'
@@ -29,12 +29,25 @@ export default function StationsList() {
       return api.put(`/stations/${id}`, updateData)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['stations'])
+      queryClient.invalidateQueries({ queryKey: ['stations'] })
       toast.success('Station updated successfully')
       setEditingStation(null)
     },
     onError: () => {
       toast.error('Failed to update station')
+    }
+  })
+
+  const { mutate: deleteStation, isPending: deleting } = useMutation({
+    mutationFn: async (stationId) => {
+      return api.delete(`/stations/${stationId}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stations'] })
+      toast.success('Station deleted successfully')
+    },
+    onError: () => {
+      toast.error('Failed to delete station')
     }
   })
 
@@ -53,6 +66,13 @@ export default function StationsList() {
   const handleSaveStation = (e) => {
     e.preventDefault()
     updateStation(editingStation)
+  }
+
+  const handleDelete = (station) => {
+    if (!window.confirm(`Are you sure you want to delete station "${station.name}"? This action cannot be undone.`)) {
+      return
+    }
+    deleteStation(station.id)
   }
 
   const filteredStations = stations
@@ -234,8 +254,9 @@ export default function StationsList() {
                               <Edit size={16} />
                             </button>
                             <button
-                              onClick={() => toast('Delete station — coming soon', { icon: '🗑️' })}
-                              className="text-red-600 hover:text-red-900"
+                              onClick={() => handleDelete(station)}
+                              disabled={deleting}
+                              className="text-red-600 hover:text-red-900 disabled:opacity-50"
                             >
                               <Trash2 size={16} />
                             </button>

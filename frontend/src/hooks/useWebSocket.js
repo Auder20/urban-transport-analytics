@@ -11,6 +11,12 @@ export function useWebSocket() {
   useEffect(() => {
     if (!token) return
 
+    // If socket already exists and token changed from null to a value, disconnect first
+    if (socketRef.current) {
+      socketRef.current.disconnect()
+      socketRef.current = null
+    }
+
     // Initialize WebSocket connection
     const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3001'
     const socket = io(WS_URL, {
@@ -50,6 +56,7 @@ export function useWebSocket() {
 
     return () => {
       socketRef.current?.disconnect()
+      socketRef.current = null
     }
   }, [token])
 

@@ -38,7 +38,7 @@ export default function BusesList() {
       return api.put(`/buses/${id}`, updateData)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['buses'])
+      queryClient.invalidateQueries({ queryKey: ['buses'] })
       toast.success('Bus updated successfully')
       setEditingBus(null)
     },
