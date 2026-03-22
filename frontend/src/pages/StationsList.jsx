@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useAllStations, useCreateStation } from '@/hooks/useStations'
@@ -13,20 +13,42 @@ export default function StationsList() {
   const [newStation, setNewStation] = useState({
     name: '', stationCode: '', lat: '', lng: '', address: '', type: 'stop'
   })
+  const [addErrors, setAddErrors] = useState({})
   const { mutate: createStation, isPending: creating } = useCreateStation()
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [editingStation, setEditingStation] = useState(null)
 
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
   const [page, setPage] = useState(1)
   const [typeFilter, setTypeFilter] = useState('')
   const { data, isLoading: loading, isError, refetch } = useAllStations(page, 20, {
     type: typeFilter || undefined,
+    search: debouncedSearch || undefined,
   })
   const stations = data?.stations || []
   const pagination = data?.pagination
 
   const queryClient = useQueryClient()
+
+  const validateNewStation = (station) => {
+    const errors = {}
+    if (!station.name?.trim()) errors.name = 'Name is required'
+    if (!station.stationCode?.trim()) errors.stationCode = 'Station code is required'
+    if (!station.lat && station.lat !== 0) errors.lat = 'Latitude is required'
+    if (!station.lng && station.lng !== 0) errors.lng = 'Longitude is required'
+    if (station.lat && (station.lat < -90 || station.lat > 90))
+      errors.lat = 'Latitude must be between -90 and 90'
+    if (station.lng && (station.lng < -180 || station.lng > 180))
+      errors.lng = 'Longitude must be between -180 and 180'
+    return errors
+  }
 
   const { mutate: updateStation, isPending: updating } = useMutation({
     mutationFn: async (stationData) => {
@@ -398,37 +420,55 @@ export default function StationsList() {
       {/* Add Station Modal */}
       <EditModal
         isOpen={showAddModal}
-        onClose={() => { setShowAddModal(false); setNewStation({ name: '', stationCode: '', lat: '', lng: '', address: '', type: 'stop' }) }}
+        onClose={() => { 
+          setShowAddModal(false); 
+          setNewStation({ name: '', stationCode: '', lat: '', lng: '', address: '', type: 'stop' })
+          setAddErrors({})
+        }}
         title="Add Station"
         isLoading={creating}
       >
         <form id="edit-form" onSubmit={(e) => {
           e.preventDefault()
+          const errors = validateNewStation(newStation)
+          if (Object.keys(errors).length > 0) {
+            setAddErrors(errors)
+            return
+          }
+          setAddErrors({})
           createStation(newStation, {
-            onSuccess: () => { setShowAddModal(false); toast.success('Station added') },
-            onError: () => toast.error('Failed to add station')
+            onSuccess: () => { 
+              setShowAddModal(false)
+              setAddErrors({})
+              toast.success('Station added') 
+            },
+            onError: (err) => toast.error(err.message || 'Failed to add station')
           })
         }} className="space-y-4">
           <div>
             <label className="label">Name *</label>
             <input className="input" required value={newStation.name}
               onChange={e => setNewStation(p => ({ ...p, name: e.target.value }))} />
+            {addErrors.name && <p className="text-red-500 text-xs mt-1">{addErrors.name}</p>}
           </div>
           <div>
             <label className="label">Station Code</label>
             <input className="input" value={newStation.stationCode}
               onChange={e => setNewStation(p => ({ ...p, stationCode: e.target.value }))} />
+            {addErrors.stationCode && <p className="text-red-500 text-xs mt-1">{addErrors.stationCode}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Latitude</label>
               <input className="input" type="number" step="0.000001" value={newStation.lat}
                 onChange={e => setNewStation(p => ({ ...p, lat: parseFloat(e.target.value) || '' }))} />
+              {addErrors.lat && <p className="text-red-500 text-xs mt-1">{addErrors.lat}</p>}
             </div>
             <div>
               <label className="label">Longitude</label>
               <input className="input" type="number" step="0.000001" value={newStation.lng}
                 onChange={e => setNewStation(p => ({ ...p, lng: parseFloat(e.target.value) || '' }))} />
+              {addErrors.lng && <p className="text-red-500 text-xs mt-1">{addErrors.lng}</p>}
             </div>
           </div>
           <div>

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import TransportMap from '@/components/Map/TransportMap'
 import { FullScreenLayout } from '@/components/Layout/PageLayout'
 import { useBusLocations } from '@/hooks/useBusLocations'

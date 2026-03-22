@@ -28,12 +28,15 @@ const app = express();
 // Create HTTP server for Socket.IO
 const server = http.createServer(app);
 
+// Parse allowed origins from environment
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  : ['http://localhost:3000', 'http://localhost:5173'];
+
 // Configure Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: process.env.NODE_ENV === 'production' 
-      ? ['https://uta.com', 'https://www.uta.com']
-      : ['http://localhost:3000', 'http://localhost:5173'],
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -80,7 +83,7 @@ const swaggerOptions = {
       description: 'RESTful API for urban transport analytics and management',
       contact: {
         name: 'Urban Transport Analytics Team',
-        email: 'support@uta.com'
+        email: process.env.CONTACT_EMAIL || 'support@uta.com'
       }
     },
     servers: [
@@ -106,9 +109,7 @@ const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
 // Middleware
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://uta.com', 'https://www.uta.com']
-    : ['http://localhost:3000', 'http://localhost:5173'],
+  origin: allowedOrigins,
   credentials: true
 }));
 
@@ -141,6 +142,13 @@ const client = require('prom-client');
 client.collectDefaultMetrics();
 
 app.get('/metrics', async (req, res) => {
+  const metricsToken = process.env.METRICS_TOKEN
+  if (metricsToken) {
+    const authHeader = req.headers.authorization
+    if (!authHeader || authHeader !== `Bearer ${metricsToken}`) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+  }
   res.set('Content-Type', client.register.contentType);
   res.end(await client.register.metrics());
 });

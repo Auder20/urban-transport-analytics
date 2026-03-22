@@ -267,7 +267,13 @@ class AuthController {
       });
 
       res.json({
-        accessToken
+        accessToken,
+        user: {
+          id: userId,
+          email: user.email,
+          fullName: user.full_name,
+          role: user.role
+        }
       });
     } catch (error) {
       if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {

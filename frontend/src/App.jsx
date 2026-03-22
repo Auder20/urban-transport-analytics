@@ -28,14 +28,17 @@ const ProtectedRoute = ({ children }) => {
 }
 
 function App() {
-  const { theme, token, setToken } = useAppStore()
+  const { theme, token, setToken, setUser } = useAppStore()
   const [isInitializing, setIsInitializing] = useState(!token)
 
   // Silent refresh on app mount
   useEffect(() => {
     if (!token) {
       axios.post('/api/auth/refresh', {}, { withCredentials: true })
-        .then(res => setToken(res.data.accessToken))
+        .then(res => {
+          setToken(res.data.accessToken)
+          if (res.data.user) setUser(res.data.user)
+        })
         .catch(() => {})
         .finally(() => setIsInitializing(false))
     }

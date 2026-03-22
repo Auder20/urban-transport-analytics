@@ -42,7 +42,7 @@ class AnalyticsService {
         120 // 2 minutes TTL
       );
     } catch (error) {
-      this._handleAxiosError(error, 'getKPIS')
+      return this._handleAxiosError(error, 'getKPIS')
     }
   }
 
@@ -61,7 +61,7 @@ class AnalyticsService {
         300 // 5 minutes TTL
       );
     } catch (error) {
-      this._handleAxiosError(error, 'predictDelay')
+      return this._handleAxiosError(error, 'predictDelay')
     }
   }
 
@@ -79,7 +79,7 @@ class AnalyticsService {
         600 // 10 minutes TTL
       );
     } catch (error) {
-      this._handleAxiosError(error, 'getRouteAnalysis')
+      return this._handleAxiosError(error, 'getRouteAnalysis')
     }
   }
 
@@ -98,7 +98,7 @@ class AnalyticsService {
         1800 // 30 minutes TTL
       );
     } catch (error) {
-      this._handleAxiosError(error, 'getAnomalies')
+      return this._handleAxiosError(error, 'getAnomalies')
     }
   }
 
@@ -113,7 +113,7 @@ class AnalyticsService {
       
       return response.data;
     } catch (error) {
-      this._handleAxiosError(error, 'retrainModel')
+      return this._handleAxiosError(error, 'retrainModel')
     }
   }
 
@@ -124,7 +124,7 @@ class AnalyticsService {
       })
       return response.data
     } catch (error) {
-      this._handleAxiosError(error, 'getTrainingStatus')
+      return this._handleAxiosError(error, 'getTrainingStatus')
     }
   }
 
@@ -142,7 +142,7 @@ class AnalyticsService {
         1800 // 30 minutes TTL
       )
     } catch (error) {
-      this._handleAxiosError(error, 'getDataQuality')
+      return this._handleAxiosError(error, 'getDataQuality')
     }
   }
 
@@ -160,7 +160,7 @@ class AnalyticsService {
         600 // 10 minutes TTL
       )
     } catch (error) {
-      this._handleAxiosError(error, 'getRouteAnalysisSummary')
+      return this._handleAxiosError(error, 'getRouteAnalysisSummary')
     }
   }
 
@@ -180,7 +180,7 @@ class AnalyticsService {
         300 // 5 minutes TTL
       )
     } catch (error) {
-      this._handleAxiosError(error, 'predictDelayForRoute')
+      return this._handleAxiosError(error, 'predictDelayForRoute')
     }
   }
 

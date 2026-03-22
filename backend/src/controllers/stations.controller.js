@@ -20,6 +20,7 @@ class StationsController {
       const offset = (page - 1) * limit;
       const type = req.query.type;
       const active = req.query.active;
+      const search = req.query.search?.trim();
 
       let whereClause = 'WHERE s.is_active = true';
       let queryParams = [limit, offset];
@@ -35,6 +36,12 @@ class StationsController {
         const activeIndex = type ? 2 : 1;
         whereClause += ` AND s.is_active = $${activeIndex}`;
         queryParams.splice(activeIndex - 1, 0, active === 'true');
+        paramIndex++;
+      }
+
+      if (search) {
+        whereClause += ` AND (s.name ILIKE $${paramIndex} OR s.station_code ILIKE $${paramIndex})`;
+        queryParams.splice(paramIndex - 1, 0, `%${search}%`);
         paramIndex++;
       }
 

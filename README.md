@@ -1,7 +1,7 @@
 # Urban Transport Analytics 🚌
 
-[![CI Pipeline](https://github.com/urban-transport-analytics/urban-transport-analytics/actions/workflows/ci.yml/badge.svg)](https://github.com/urban-transport-analytics/urban-transport-analytics/actions/workflows/ci.yml)
-[![Security Scan](https://github.com/urban-transport-analytics/urban-transport-analytics/actions/workflows/security.yml/badge.svg)](https://github.com/urban-transport-analytics/urban-transport-analytics/actions/workflows/security.yml)
+[![CI Pipeline](https://github.com/Auder20/urban-transport-analytics/actions/workflows/ci.yml/badge.svg)](https://github.com/Auder20/urban-transport-analytics/actions/workflows/ci.yml)
+[![Security Scan](https://github.com/Auder20/urban-transport-analytics/actions/workflows/security.yml/badge.svg)](https://github.com/Auder20/urban-transport-analytics/actions/workflows/security.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker Hub](https://img.shields.io/badge/Docker-Hub-blue.svg)](https://hub.docker.com/u/urban-transport-analytics)
 
@@ -74,7 +74,7 @@ A comprehensive full-stack platform for real-time urban public transport analyti
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/urban-transport-analytics/urban-transport-analytics.git
+   git clone https://github.com/Auder20/urban-transport-analytics.git
    cd urban-transport-analytics
    ```
 
@@ -340,9 +340,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Documentation**: [Wiki](https://github.com/urban-transport-analytics/urban-transport-analytics/wiki)
-- **Issues**: [GitHub Issues](https://github.com/urban-transport-analytics/urban-transport-analytics/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/urban-transport-analytics/urban-transport-analytics/discussions)
+- **Documentation**: [Wiki](https://github.com/Auder20/urban-transport-analytics/wiki)
+- **Issues**: [GitHub Issues](https://github.com/Auder20/urban-transport-analytics/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Auder20/urban-transport-analytics/discussions)
 
 ## 🗺️ Roadmap
 

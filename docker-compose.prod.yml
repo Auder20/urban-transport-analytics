@@ -1,0 +1,248 @@
+services:
+
+  nginx:
+    build: ./nginx
+    ports: ['80:80', '443:443']
+    depends_on: [frontend, backend]
+    networks: [uta-net]
+    restart: always
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+    environment:
+      - VITE_API_URL=https://uta.com/api
+      - VITE_ANALYTICS_URL=https://uta.com/analytics
+      - NODE_ENV=production
+    networks: [uta-net]
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    environment:
+      - DATABASE_URL=postgresql://uta:${POSTGRES_PASSWORD}@postgres:5432/uta_db
+      - MONGODB_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/uta_logs?authSource=admin
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - ANALYTICS_URL=http://analytics:8000
+      - JWT_SECRET=${JWT_SECRET}
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+      - CORS_ORIGINS=https://uta.com,https://www.uta.com
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongo:
+        condition: service_started
+    networks: [uta-net]
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    volumes:
+      - ./logs/backend:/app/logs
+
+  analytics:
+    build: 
+      context: ./analytics
+      dockerfile: Dockerfile
+      target: production
+    environment:
+      - DATABASE_URL=postgresql://uta:${POSTGRES_PASSWORD}@postgres:5432/uta_db
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - CORS_ORIGINS=https://uta.com,https://www.uta.com
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+      - MODEL_RETRAIN_SCHEDULE=0 2 * * *
+      - MIN_SAMPLES_FOR_TRAINING=1000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [uta-net]
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    volumes:
+      - ./logs/analytics:/app/logs
+      - ./models:/app/models
+
+  # ── Seed service (production) ───────────────────────────────────────────────────
+  # Runs once automatically on first docker compose up in production
+  # Uses a named volume flag to skip if already seeded
+  seed:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    command: >
+      sh -c "
+        echo '⏳ Waiting for PostgreSQL...' &&
+        until pg_isready -h postgres -U uta; do sleep 1; done &&
+        echo '✅ PostgreSQL ready' &&
+        node scripts/seed-db.js
+      "
+    environment:
+      - DATABASE_URL=postgresql://uta:${POSTGRES_PASSWORD}@postgres:5432/uta_db
+      - MONGODB_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/uta_logs
+      - NODE_ENV=production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_started
+    networks: [uta-net]
+    restart: "no"
+    profiles: [seed]
+
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: uta
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: uta_db
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U uta -d uta_db']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks: [uta-net]
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  mongo:
+    image: mongo:7.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_INITDB_DATABASE: uta_logs
+    volumes:
+      - mongo_data:/data/db
+      - ./backups/mongo:/backups
+    networks: [uta-net]
+    restart: always
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:7.2-alpine
+    command: >
+      redis-server 
+      --maxmemory 512mb 
+      --maxmemory-policy allkeys-lru 
+      --requirepass ${REDIS_PASSWORD} 
+      --appendonly yes
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+    volumes:
+      - redis_data:/data
+      - ./backups/redis:/backups
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    networks: [uta-net]
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  postgres_data:
+    driver: local
+  mongo_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  uta-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# Production-specific overrides
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"

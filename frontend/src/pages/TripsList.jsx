@@ -29,11 +29,23 @@ export default function TripsList() {
   const trips = data?.trips || []
   const pagination = data?.pagination
 
+  // Calcula el rango del mes actual para el calendario
+  const monthStart = format(startOfMonth(currentMonth), 'yyyy-MM-dd')
+  const monthEnd = format(endOfMonth(currentMonth), 'yyyy-MM-dd')
+
+  // Query adicional solo activa en modo calendario
+  const { data: calendarData } = useAllTrips(1, 500, {
+    from: monthStart,
+    to: monthEnd,
+  }, { enabled: viewMode === 'calendar' })
+
+  const calendarTrips = calendarData?.trips || []
+
   const filteredTrips = trips
 
   // Helper functions for calendar view
   const getTripsForDay = (day) =>
-    trips.filter(t => isSameDay(new Date(t.startedAt), day))
+    calendarTrips.filter(t => isSameDay(new Date(t.startedAt), day))
 
   const daysInMonth = eachDayOfInterval({
     start: startOfMonth(currentMonth),

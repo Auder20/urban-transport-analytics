@@ -53,7 +53,18 @@ export default function BusesList() {
   const handleSaveBus = (e) => {
     e.preventDefault()
     const { id, ...data } = editingBus
-    updateBus({ id, data })
+    updateBus(
+      { id, data },
+      {
+        onSuccess: () => {
+          setEditingBus(null)
+          toast.success('Bus updated successfully')
+        },
+        onError: () => {
+          toast.error('Failed to update bus')
+        }
+      }
+    )
   }
 
   const handleDelete = (bus) => {
@@ -166,7 +177,10 @@ export default function BusesList() {
                 {searchTerm ? 'Try adjusting your search terms' : 'Get started by adding your first bus to the system'}
               </p>
               {canEdit && !searchTerm && (
-                <button className="btn btn-primary flex items-center gap-2 mx-auto">
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="btn btn-primary flex items-center gap-2 mx-auto"
+                >
                   <Plus size={16} />
                   Add Your First Bus
                 </button>
@@ -361,8 +375,9 @@ export default function BusesList() {
         onClose={() => { setShowAddModal(false); setNewBus({ plateNumber: '', model: '', year: '', capacity: 80 }) }}
         title="Add Bus"
         isLoading={creating}
+        formId="add-bus-form"
       >
-        <form id="edit-form" onSubmit={(e) => {
+        <form id="add-bus-form" onSubmit={(e) => {
           e.preventDefault()
           createBus(newBus, {
             onSuccess: () => { setShowAddModal(false); toast.success('Bus added') },

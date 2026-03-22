@@ -18,8 +18,7 @@ class NotificationsController {
           message,
           type,
           is_read,
-          created_at as "createdAt",
-          updated_at as "updatedAt"
+          created_at as "createdAt"
         FROM notifications 
         WHERE user_id = $1 
         ORDER BY created_at DESC 
@@ -64,9 +63,9 @@ class NotificationsController {
 
       const query = `
         UPDATE notifications 
-        SET is_read = true, updated_at = NOW()
+        SET is_read = true
         WHERE id = $1 AND user_id = $2
-        RETURNING id, is_read, updated_at as "updatedAt"
+        RETURNING id, is_read
       `;
       
       const result = await pool.query(query, [id, userId]);
@@ -97,7 +96,7 @@ class NotificationsController {
 
       const query = `
         UPDATE notifications 
-        SET is_read = true, updated_at = NOW()
+        SET is_read = true
         WHERE user_id = $1 AND is_read = false
         RETURNING id
       `;
@@ -162,9 +161,9 @@ class NotificationsController {
       }
 
       const query = `
-        INSERT INTO notifications (user_id, title, message, type, is_read, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, false, NOW(), NOW())
-        RETURNING id, title, message, type, is_read, created_at as "createdAt", updated_at as "updatedAt"
+        INSERT INTO notifications (user_id, title, message, type, is_read, created_at)
+        VALUES ($1, $2, $3, $4, false, NOW())
+        RETURNING id, title, message, type, is_read, created_at as "createdAt"
       `;
 
       const result = await pool.query(query, [userId, title, message, type]);
@@ -177,8 +176,7 @@ class NotificationsController {
         message: notification.message,
         type: notification.type,
         is_read: notification.is_read,
-        created_at: notification.createdAt,
-        updated_at: notification.updatedAt
+        created_at: notification.createdAt
       });
 
       res.status(201).json({
