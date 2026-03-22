@@ -1,304 +1,351 @@
 #!/usr/bin/env python3
 """
-Generate 90 days of historical trip data with realistic delays
+generate-history.py
+Script para generar datos históricos de viajes para los últimos 180 días
+con variaciones realistas basadas en patrones de transporte urbano
 """
 
+import os
+import sys
 import random
 import psycopg2
+from psycopg2 import sql, extras
 from datetime import datetime, timedelta
 import math
-import sys
 
-# Database connection
-DB_URL = "postgresql://uta:secret@localhost:5432/uta_db"
+# Configuración de base de datos
+DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://uta:secret@localhost:5432/uta_db')
 
 def get_db_connection():
-    """Get database connection"""
+    """Establecer conexión con PostgreSQL"""
     try:
-        conn = psycopg2.connect(DB_URL)
+        conn = psycopg2.connect(DATABASE_URL)
         return conn
     except Exception as e:
-        print(f"❌ Database connection failed: {e}")
+        print(f"❌ Error conectando a PostgreSQL: {e}")
         sys.exit(1)
 
-def generate_delay_minutes(hour: int, day_of_week: int) -> int:
-    """
-    Generate realistic delay minutes based on time patterns
-    
-    Args:
-        hour: Hour of day (0-23)
-        day_of_week: Day of week (0=Monday, 6=Sunday)
-    
-    Returns:
-        Delay in minutes
-    """
-    # Base delay varies by time of day
-    if 7 <= hour <= 9:  # Morning peak (7-9 AM)
-        base_delay = random.gauss(12, 6)
-    elif 17 <= hour <= 19:  # Evening peak (5-7 PM)
-        base_delay = random.gauss(10, 5)
-    elif 12 <= hour <= 14:  # Lunch time
-        base_delay = random.gauss(5, 3)
-    elif 22 <= hour or hour <= 5:  # Night/early morning
-        base_delay = random.gauss(2, 2)
-    else:  # Off-peak
-        base_delay = random.gauss(3, 4)
-    
-    # Weekend adjustment (less traffic)
-    if day_of_week >= 5:  # Saturday, Sunday
-        base_delay *= 0.6
-    
-    # Add some randomness for events
-    if random.random() < 0.05:  # 5% chance of incident
-        base_delay += random.uniform(15, 45)
-    
-    # Ensure delay is non-negative and reasonable
-    delay = max(0, base_delay)
-    return min(int(delay), 120)  # Cap at 2 hours
+def get_existing_data(conn):
+    """Obtener datos existentes de rutas, buses y usuarios"""
+    with conn.cursor() as cur:
+        # Obtener rutas
+        cur.execute("SELECT id, route_code FROM routes WHERE status = 'active'")
+        routes = cur.fetchall()
+        route_ids = [row[0] for row in routes]
+        route_codes = [row[1] for row in routes]
+        
+        # Obtener buses
+        cur.execute("SELECT id, plate_number, capacity FROM buses WHERE status = 'active'")
+        buses = cur.fetchall()
+        bus_ids = [row[0] for row in buses]
+        bus_capacities = {row[0]: row[2] for row in buses}
+        
+        # Obtener conductores (usuarios operadores y admin)
+        cur.execute("SELECT id FROM users WHERE role IN ('operator', 'admin')")
+        drivers = cur.fetchall()
+        driver_ids = [row[0] for row in drivers]
+        
+        return {
+            'route_ids': route_ids,
+            'route_codes': route_codes,
+            'bus_ids': bus_ids,
+            'bus_capacities': bus_capacities,
+            'driver_ids': driver_ids
+        }
 
-def generate_passenger_count(hour: int, capacity: int) -> int:
-    """
-    Generate realistic passenger count based on time and capacity
-    
-    Args:
-        hour: Hour of day (0-23)
-        capacity: Bus capacity
-    
-    Returns:
-        Passenger count
-    """
-    # Peak hours have higher occupancy
-    if 7 <= hour <= 9 or 17 <= hour <= 19:
-        occupancy_rate = random.uniform(0.7, 1.0)
-    elif 12 <= hour <= 14:
-        occupancy_rate = random.uniform(0.4, 0.8)
-    else:
-        occupancy_rate = random.uniform(0.2, 0.6)
-    
-    return int(capacity * occupancy_rate)
+def is_peak_hour(hour):
+    """Determinar si una hora es hora pico"""
+    return (7 <= hour <= 9) or (12 <= hour <= 14) or (17 <= hour <= 19)
 
-def seed_trips(conn, n_days: int = 90):
-    """
-    Generate historical trip data
+def is_weekend(date):
+    """Determinar si es fin de semana"""
+    return date.weekday() >= 5
+
+def get_passenger_count(base_capacity, hour, is_weekend_day):
+    """Calcular número de pasajeros realista según hora y día"""
+    # Base capacity factor
+    base_factor = 0.3 + random.random() * 0.4  # 30-70% de capacidad base
     
-    Args:
-        conn: Database connection
-        n_days: Number of days to generate
-    """
-    cursor = conn.cursor()
+    # Ajuste por hora pico
+    if is_peak_hour(hour):
+        base_factor *= 1.5 + random.random() * 0.5  # 75-150% en hora pico
+    elif hour < 6 or hour > 21:
+        base_factor *= 0.3 + random.random() * 0.2  # 9-18% en horarios nocturnos
     
-    print(f"🔄 Generating {n_days} days of historical trip data...")
+    # Ajuste por fin de semana
+    if is_weekend_day:
+        base_factor *= 0.7 + random.random() * 0.3  # 21-63% los fines de semana
     
-    # Get existing data
-    cursor.execute("SELECT id, route_id, bus_id, capacity FROM buses WHERE status = 'active'")
-    buses = cursor.fetchall()
+    passenger_count = int(base_capacity * base_factor)
+    return max(1, min(passenger_count, base_capacity))
+
+def get_delay_probability(day_of_week, hour):
+    """Calcular probabilidad de retraso según día y hora"""
+    base_prob = 0.15  # 15% base de retraso
     
-    cursor.execute("SELECT id, route_id FROM routes WHERE status = 'active'")
-    routes = cursor.fetchall()
+    # Más retrasos lunes y viernes
+    if day_of_week == 0 or day_of_week == 4:  # Lunes o viernes
+        base_prob += 0.1
     
-    if not buses or not routes:
-        print("❌ No active buses or routes found")
-        return
+    # Más retrasos en hora pico
+    if is_peak_hour(hour):
+        base_prob += 0.15
     
-    print(f"📊 Found {len(buses)} buses and {len(routes)} routes")
+    # Menos retrasos en fin de semana
+    if day_of_week >= 5:
+        base_prob -= 0.05
     
-    # Create route mapping
-    route_map = {route[1]: route[0] for route in routes}
+    return min(base_prob, 0.4)  # Máximo 40% de probabilidad
+
+def generate_historical_trips(conn, data, days=180):
+    """Generar viajes históricos para los últimos días especificados"""
+    print(f"📊 Generando viajes históricos para los últimos {days} días...")
     
-    # Generate trips for each day
-    total_trips = 0
-    start_date = datetime.now() - timedelta(days=n_days)
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=days)
     
-    for day_offset in range(n_days):
-        current_date = start_date + timedelta(days=day_offset)
-        day_of_week = current_date.weekday()  # 0=Monday, 6=Sunday
+    trips_generated = 0
+    
+    with conn.cursor() as cur:
+        # Deshabilitar triggers para mejor rendimiento
+        cur.execute("ALTER TABLE trips DISABLE TRIGGER ALL")
         
-        print(f"📅 Generating data for {current_date.strftime('%Y-%m-%d')} (Day {day_offset + 1}/{n_days})")
-        
-        # Skip weekends for fewer trips
-        daily_trips_target = 300 if day_of_week < 5 else 150
-        
-        for hour in range(5, 23):  # 5 AM to 11 PM
-            # More trips during peak hours
-            if 7 <= hour <= 9 or 17 <= hour <= 19:
-                trips_per_hour = int(daily_trips_target * 0.15 / 8)  # 15% of daily trips per peak hour
-            else:
-                trips_per_hour = int(daily_trips_target * 0.05 / 13)  # 5% per off-peak hour
+        try:
+            current_date = start_date
+            batch_size = 1000
+            trips_batch = []
             
-            # Generate trips for this hour
-            for trip_num in range(trips_per_hour):
-                # Random bus and route
-                bus = random.choice(buses)
-                route_id = bus[1]  # bus's current route
+            while current_date <= end_date:
+                day_of_week = current_date.weekday()
+                is_weekend_day = is_weekend(current_date)
                 
-                if not route_id or route_id not in route_map:
-                    continue
+                # Número de viajes por día (menos los domingos)
+                if day_of_week == 6:  # Domingo
+                    daily_trips = random.randint(8, 15)
+                elif is_weekend_day:  # Sábado
+                    daily_trips = random.randint(12, 20)
+                else:  # Día laboral
+                    daily_trips = random.randint(15, 25)
                 
-                # Calculate scheduled and actual times
-                scheduled_minute = random.randint(0, 59)
-                scheduled_time = current_date.replace(hour=hour, minute=scheduled_minute, second=0, microsecond=0)
+                for trip_num in range(daily_trips):
+                    # Seleccionar ruta y bus aleatorios
+                    route_id = random.choice(data['route_ids'])
+                    bus_id = random.choice(data['bus_ids'])
+                    driver_id = random.choice(data['driver_ids'])
+                    capacity = data['bus_capacities'][bus_id]
+                    
+                    # Generar hora de salida (distribución realista)
+                    if is_weekend_day:
+                        # Fines de semana: distribución más uniforme
+                        hour = random.randint(6, 22)
+                        minute = random.randint(0, 59)
+                    else:
+                        # Días laborales: concentración en horas pico
+                        hour_choices = list(range(5, 23))
+                        hour_weights = [
+                            0.3,  # 5am
+                            0.8,  # 6am
+                            1.5,  # 7am (pico)
+                            1.8,  # 8am (pico)
+                            1.2,  # 9am (pico)
+                            0.6,  # 10am
+                            0.5,  # 11am
+                            0.9,  # 12pm (pico)
+                            1.3,  # 1pm (pico)
+                            1.1,  # 2pm (pico)
+                            0.7,  # 3pm
+                            0.6,  # 4pm
+                            1.4,  # 5pm (pico)
+                            1.7,  # 6pm (pico)
+                            1.3,  # 7pm (pico)
+                            0.8,  # 8pm
+                            0.5,  # 9pm
+                            0.3,  # 10pm
+                            0.2,  # 11pm
+                        ]
+                        hour = random.choices(hour_choices, weights=hour_weights)[0]
+                        minute = random.randint(0, 59)
+                    
+                    # Crear timestamps
+                    scheduled_start = current_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                    
+                    # Determinar si habrá retraso
+                    delay_prob = get_delay_probability(day_of_week, hour)
+                    has_delay = random.random() < delay_prob
+                    
+                    if has_delay:
+                        delay_minutes = random.randint(5, 45)
+                        actual_start = scheduled_start + timedelta(minutes=delay_minutes)
+                    else:
+                        delay_minutes = random.randint(-2, 5)  # Pequeños adelantos o a tiempo
+                        actual_start = scheduled_start + timedelta(minutes=delay_minutes)
+                    
+                    # Duración del viaje (30-90 minutos dependiendo de la ruta)
+                    travel_duration = random.randint(30, 90)
+                    actual_end = actual_start + timedelta(minutes=travel_duration)
+                    
+                    # Pasajeros
+                    passenger_count = get_passenger_count(capacity, hour, is_weekend_day)
+                    
+                    # Estado del viaje
+                    if actual_end > datetime.now():
+                        status = 'scheduled'
+                    elif random.random() < 0.02:  # 2% cancelados
+                        status = 'cancelled'
+                        actual_end = None
+                        passenger_count = 0
+                    elif actual_end > datetime.now() - timedelta(hours=2):
+                        status = 'in_progress'
+                        actual_end = None
+                    else:
+                        status = 'completed'
+                    
+                    # Agregar a batch
+                    trip_data = (
+                        bus_id,
+                        route_id,
+                        driver_id,
+                        scheduled_start,
+                        actual_start if status != 'cancelled' else None,
+                        actual_end,
+                        passenger_count,
+                        status
+                    )
+                    trips_batch.append(trip_data)
+                    
+                    # Insertar batch cuando alcance el tamaño
+                    if len(trips_batch) >= batch_size:
+                        extras.execute_batch(
+                            cur,
+                            """
+                            INSERT INTO trips (bus_id, route_id, driver_id, scheduled_start, started_at, ended_at, passenger_count, status)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                            ON CONFLICT DO NOTHING
+                            """,
+                            trips_batch
+                        )
+                        trips_generated += len(trips_batch)
+                        trips_batch = []
+                        print(f"   ✅ {trips_generated} viajes generados...")
                 
-                delay_minutes = generate_delay_minutes(hour, day_of_week)
-                actual_time = scheduled_time + timedelta(minutes=delay_minutes)
-                
-                # Generate passenger count
-                passenger_count = generate_passenger_count(hour, bus[2] or 80)
-                
-                # Insert trip
-                cursor.execute("""
-                    INSERT INTO trips (
-                        bus_id, route_id, driver_id, started_at, ended_at, 
-                        scheduled_start, passenger_count, status
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                """, (
-                    bus[0],  # bus_id
-                    route_map[route_id],  # route_id
-                    None,  # driver_id (can be null)
-                    actual_time,  # started_at
-                    actual_time + timedelta(hours=1),  # ended_at (1 hour trip)
-                    scheduled_time,  # scheduled_start
-                    passenger_count,  # passenger_count
-                    'completed'  # status
-                ))
-                
-                total_trips += 1
-        
-        # Commit every 5 days to avoid large transactions
-        if (day_offset + 1) % 5 == 0:
-            conn.commit()
-            print(f"💾 Committed {total_trips} trips so far")
-    
-    # Final commit
-    conn.commit()
-    
-    print(f"✅ Generated {total_trips} historical trips over {n_days} days")
-    
-    # Generate statistics
-    cursor.execute("""
-        SELECT 
-            COUNT(*) as total_trips,
-            AVG(delay_minutes) as avg_delay,
-            COUNT(CASE WHEN delay_minutes <= 5 THEN 1 END) * 100.0 / COUNT(*) as on_time_pct,
-            COUNT(CASE WHEN delay_minutes > 15 THEN 1 END) * 100.0 / COUNT(*) as delayed_pct
-        FROM trips
-        WHERE started_at >= %s
-    """, (start_date,))
-    
-    stats = cursor.fetchone()
-    
-    print(f"\n📈 Generated Statistics:")
-    print(f"   Total trips: {stats[0]:,}")
-    print(f"   Average delay: {stats[1]:.1f} minutes")
-    print(f"   On-time percentage: {stats[2]:.1f}%")
-    print(f"   Delayed percentage: {stats[3]:.1f}%")
-
-def generate_gps_logs(conn, n_days: int = 7):
-    """
-    Generate GPS logs for recent trips
-    
-    Args:
-        conn: Database connection
-        n_days: Number of days to generate GPS logs for
-    """
-    cursor = conn.cursor()
-    
-    print(f"📍 Generating GPS logs for last {n_days} days...")
-    
-    # Get recent trips
-    cursor.execute("""
-        SELECT id, bus_id, route_id, started_at, ended_at 
-        FROM trips 
-        WHERE started_at >= NOW() - INTERVAL '%s days'
-        ORDER BY started_at DESC
-        LIMIT 1000
-    """, (n_days,))
-    
-    trips = cursor.fetchall()
-    
-    if not trips:
-        print("❌ No recent trips found")
-        return
-    
-    print(f"📊 Found {len(trips)} recent trips")
-    
-    # Get MongoDB connection for GPS logs
-    try:
-        from pymongo import MongoClient
-        mongo_client = MongoClient('mongodb://localhost:27017')
-        mongo_db = mongo_client.uta_logs
-        gps_collection = mongo_db.gps_logs
-        
-        total_logs = 0
-        
-        for trip in trips:
-            trip_id, bus_id, route_id, started_at, ended_at = trip
+                current_date += timedelta(days=1)
             
-            # Generate GPS points every 2 minutes during the trip
-            current_time = started_at
-            while current_time < ended_at:
-                # Generate position (simplified - would use actual route data)
-                lat = 4.7110 + (random.random() - 0.5) * 0.1
-                lng = -74.0721 + (random.random() - 0.5) * 0.1
-                
-                # Random speed and other data
-                speed_kmh = random.uniform(15, 50)
-                heading = random.uniform(0, 360)
-                occupancy_pct = random.uniform(20, 90)
-                
-                gps_log = {
-                    'bus_id': str(bus_id),
-                    'route_id': str(route_id),
-                    'timestamp': current_time,
-                    'location': {
-                        'type': 'Point',
-                        'coordinates': [lng, lat]
-                    },
-                    'speed_kmh': speed_kmh,
-                    'heading': heading,
-                    'altitude_m': random.uniform(2500, 2600),
-                    'accuracy_m': random.uniform(5, 15),
-                    'occupancy_pct': occupancy_pct,
-                    'engine_status': random.choice(['on', 'idle']),
-                    'odometer_km': random.uniform(10000, 50000)
-                }
-                
-                gps_collection.insert_one(gps_log)
-                total_logs += 1
-                
-                # Move to next time point
-                current_time += timedelta(minutes=2)
+            # Insertar remaining trips
+            if trips_batch:
+                extras.execute_batch(
+                    cur,
+                    """
+                    INSERT INTO trips (bus_id, route_id, driver_id, scheduled_start, started_at, ended_at, passenger_count, status)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT DO NOTHING
+                    """,
+                    trips_batch
+                )
+                trips_generated += len(trips_batch)
         
-        print(f"✅ Generated {total_logs} GPS logs")
+        finally:
+            # Rehabilitar triggers
+            cur.execute("ALTER TABLE trips ENABLE TRIGGER ALL")
+    
+    return trips_generated
+
+def update_statistics(conn):
+    """Actualizar estadísticas de la base de datos"""
+    print("📈 Actualizando estadísticas...")
+    
+    with conn.cursor() as cur:
+        # Actualizar conteos de estaciones por ruta
+        cur.execute("""
+            UPDATE routes 
+            SET total_stops = (
+                SELECT COUNT(*) 
+                FROM route_stations 
+                WHERE route_id = routes.id
+            )
+        """)
         
-        mongo_client.close()
-        
-    except ImportError:
-        print("⚠️ pymongo not installed, skipping GPS logs")
-    except Exception as e:
-        print(f"❌ Failed to generate GPS logs: {e}")
+        # Actualizar estadísticas de viajes
+        cur.execute("ANALYZE trips")
+        cur.execute("ANALYZE routes")
+        cur.execute("ANALYZE buses")
 
 def main():
-    """Main function"""
-    print("🚀 Starting historical data generation...")
-    
-    conn = get_db_connection()
+    """Función principal"""
+    print("🚀 Iniciando generación de datos históricos...")
     
     try:
-        # Generate trips
-        seed_trips(conn, n_days=90)
+        conn = get_db_connection()
+        conn.autocommit = False
         
-        # Generate GPS logs
-        generate_gps_logs(conn, n_days=7)
+        print("✅ Conectado a la base de datos")
         
-        print("\n🎉 Historical data generation completed!")
-        print("📊 Database is now populated with realistic historical data")
+        # Obtener datos existentes
+        data = get_existing_data(conn)
+        print(f"   📊 {len(data['route_ids'])} rutas encontradas")
+        print(f"   🚌 {len(data['bus_ids'])} buses encontrados")
+        print(f"   👤 {len(data['driver_ids'])} conductores encontrados")
+        
+        if not data['route_ids'] or not data['bus_ids'] or not data['driver_ids']:
+            print("❌ No hay datos suficientes en la base de datos. Ejecuta primero seed-db.js")
+            sys.exit(1)
+        
+        # Generar viajes históricos
+        trips_count = generate_historical_trips(conn, data, days=180)
+        
+        # Actualizar estadísticas
+        update_statistics(conn)
+        
+        # Confirmar transacción
+        conn.commit()
+        
+        print("\n🎉 GENERACIÓN DE DATOS HISTÓRICOS COMPLETADA")
+        print("=" * 50)
+        print(f"📊 Viajes históricos generados: {trips_count}")
+        print(f"📅 Período: Últimos 180 días")
+        print(f"📈 Promedio diario: {trips_count / 180:.1f} viajes/día")
+        print("=" * 50)
+        
+        # Mostrar resumen de distribución
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT 
+                    status,
+                    COUNT(*) as count,
+                    ROUND(COUNT(*)::float / (SELECT COUNT(*) FROM trips) * 100, 1) as percentage
+                FROM trips 
+                GROUP BY status
+                ORDER BY count DESC
+            """)
+            
+            print("\n📊 Distribución de estados de viajes:")
+            for row in cur.fetchall():
+                print(f"   {row[0]}: {row[1]} ({row[2]}%)")
+            
+            cur.execute("""
+                SELECT 
+                    DATE_TRUNC('day', scheduled_start) as date,
+                    COUNT(*) as count
+                FROM trips 
+                WHERE scheduled_start >= CURRENT_DATE - INTERVAL '7 days'
+                GROUP BY DATE_TRUNC('day', scheduled_start)
+                ORDER BY date DESC
+                LIMIT 7
+            """)
+            
+            print("\n📈 Viajes de los últimos 7 días:")
+            for row in cur.fetchall():
+                print(f"   {row[0].strftime('%Y-%m-%d')}: {row[1]} viajes")
         
     except Exception as e:
-        print(f"❌ Error during data generation: {e}")
-        conn.rollback()
+        print(f"❌ Error durante la generación: {e}")
+        if 'conn' in locals():
+            conn.rollback()
         sys.exit(1)
+    
     finally:
-        conn.close()
+        if 'conn' in locals():
+            conn.close()
+            print("✅ Conexión cerrada")
 
 if __name__ == "__main__":
     main()
