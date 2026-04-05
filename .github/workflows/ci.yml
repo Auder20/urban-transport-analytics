@@ -346,8 +346,48 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to staging
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Deploy to production
         run: |
-          echo "🚀 Deploying to staging environment..."
-          # Add your deployment commands here
-          echo "Deployment completed successfully!"
+          echo "🚀 Deploying to production environment..."
+          
+          # Set production environment variables
+          export NODE_ENV=production
+          export DOCKER_COMPOSE_FILE=docker-compose.prod.yml
+          
+          # Deploy to production server
+          echo "📦 Building and deploying containers..."
+          docker-compose -f $DOCKER_COMPOSE_FILE down
+          docker-compose -f $DOCKER_COMPOSE_FILE build --no-cache
+          docker-compose -f $DOCKER_COMPOSE_FILE up -d
+          
+          # Wait for services to be healthy
+          echo "⏳ Waiting for services to be healthy..."
+          timeout 300 bash -c 'until curl -f $PRODUCTION_API_URL/health; do sleep 5; done'
+          
+          # Run database migrations if needed
+          echo "🗄️ Running database migrations..."
+          docker-compose -f $DOCKER_COMPOSE_FILE exec -T backend npm run migrate
+          
+          # Verify deployment
+          echo "✅ Verifying deployment..."
+          curl -f $PRODUCTION_API_URL/health || exit 1
+          curl -f $PRODUCTION_ANALYTICS_URL/health || exit 1
+          curl -f $PRODUCTION_FRONTEND_URL/ || exit 1
+          
+          # Clean up old images
+          echo "🧹 Cleaning up old Docker images..."
+          docker image prune -f
+          
+          echo "✅ Deployment completed successfully!"
+        env:
+          PRODUCTION_API_URL: ${{ secrets.PRODUCTION_API_URL }}
+          PRODUCTION_ANALYTICS_URL: ${{ secrets.PRODUCTION_ANALYTICS_URL }}
+          PRODUCTION_FRONTEND_URL: ${{ secrets.PRODUCTION_FRONTEND_URL }}
+          PRODUCTION_SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          PRODUCTION_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          PRODUCTION_SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}

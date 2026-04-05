@@ -14,13 +14,48 @@ const mongoClient = new MongoClient(
 
 // ─── USUARIOS ────────────────────────────────────────────────────────────────
 const users = [
-  { email: 'admin@uta.com',       password: 'admin123', fullName: 'System Administrator', role: 'admin' },
-  { email: 'operador1@uta.com',   password: 'oper123',  fullName: 'Carlos Rodríguez',     role: 'operator' },
-  { email: 'operador2@uta.com',   password: 'oper123',  fullName: 'María García',         role: 'operator' },
-  { email: 'operador3@uta.com',   password: 'oper123',  fullName: 'Juan Pérez',           role: 'operator' },
-  { email: 'operador4@uta.com',   password: 'oper123',  fullName: 'Lucía Martínez',       role: 'operator' },
-  { email: 'viewer@uta.com',      password: 'view123',  fullName: 'Ana López',            role: 'viewer' },
-  { email: 'viewer2@uta.com',     password: 'view123',  fullName: 'Pedro Gómez',          role: 'viewer' },
+  { 
+    email: process.env.ADMIN_EMAIL || 'admin@uta.com', 
+    password: process.env.ADMIN_PASSWORD, 
+    fullName: 'System Administrator', 
+    role: 'admin' 
+  },
+  { 
+    email: process.env.OPERATOR1_EMAIL || 'operador1@uta.com', 
+    password: process.env.OPERATOR_PASSWORD,  
+    fullName: 'Carlos Rodríguez',     
+    role: 'operator' 
+  },
+  { 
+    email: process.env.OPERATOR2_EMAIL || 'operador2@uta.com', 
+    password: process.env.OPERATOR_PASSWORD,  
+    fullName: 'María García',         
+    role: 'operator' 
+  },
+  { 
+    email: process.env.OPERATOR3_EMAIL || 'operador3@uta.com', 
+    password: process.env.OPERATOR_PASSWORD,  
+    fullName: 'Juan Pérez',           
+    role: 'operator' 
+  },
+  { 
+    email: process.env.OPERATOR4_EMAIL || 'operador4@uta.com', 
+    password: process.env.OPERATOR_PASSWORD,  
+    fullName: 'Lucía Martínez',       
+    role: 'operator' 
+  },
+  { 
+    email: process.env.VIEWER1_EMAIL || 'viewer@uta.com',      
+    password: process.env.VIEWER_PASSWORD, 
+    fullName: 'Ana López',            
+    role: 'viewer' 
+  },
+  { 
+    email: process.env.VIEWER2_EMAIL || 'viewer2@uta.com',     
+    password: process.env.VIEWER_PASSWORD, 
+    fullName: 'Pedro Gómez',          
+    role: 'viewer' 
+  },
 ];
 
 // ─── RUTAS ───────────────────────────────────────────────────────────────────
@@ -523,9 +558,12 @@ async function seedDatabase() {
     console.log(`🚦 Eventos de tráfico:      ${trafficEvents.length}`);
     console.log('==========================================');
     console.log('🔑 Credenciales:');
-    console.log('   Admin:    admin@uta.com / admin123');
-    console.log('   Operador: operador1@uta.com / oper123');
-    console.log('   Viewer:   viewer@uta.com / view123');
+    console.log(`   Admin:    ${process.env.ADMIN_EMAIL || 'admin@uta.com'} / [CONFIGURAR EN .env]`);
+    console.log(`   Operador: ${process.env.OPERATOR1_EMAIL || 'operador1@uta.com'} / [CONFIGURAR EN .env]`);
+    console.log(`   Viewer:   ${process.env.VIEWER1_EMAIL || 'viewer@uta.com'} / [CONFIGURAR EN .env]`);
+    console.log('==========================================');
+    console.log('⚠️  IMPORTANTE: Configure las variables de entorno en producción');
+    console.log('   ADMIN_PASSWORD, OPERATOR_PASSWORD, VIEWER_PASSWORD deben ser seguras');
 
     await client.end();
     await mongoClient.close();

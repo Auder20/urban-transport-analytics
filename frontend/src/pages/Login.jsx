@@ -210,7 +210,7 @@ export default function Login() {
             <p className="text-sm text-blue-800 font-medium mb-2">Demo Credentials:</p>
             <div className="text-xs text-blue-600 space-y-1">
               <p>Email: admin@uta.com</p>
-              <p>Password: admin123</p>
+              <p>Password: Configurar en .env</p>
             </div>
           </div>
         </div>

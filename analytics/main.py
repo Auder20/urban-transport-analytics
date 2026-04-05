@@ -80,6 +80,45 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Authentication middleware
+@app.middleware("http")
+async def add_authentication_header(request: Request, call_next):
+    """Add authentication info to request state"""
+    # Skip auth for health check and docs
+    if request.url.path in ["/health", "/", "/docs", "/redoc", "/openapi.json"]:
+        return await call_next(request)
+    
+    # Check for Authorization header
+    auth_header = request.headers.get("Authorization")
+    if auth_header:
+        try:
+            # Verify token and attach user info to request state
+            from utils.auth import verify_token
+            import jwt
+            from fastapi.security import HTTPAuthorizationCredentials
+            
+            # Create credentials object for verification
+            token = auth_header.replace("Bearer ", "") if auth_header.startswith("Bearer ") else auth_header
+            
+            # Manual token verification for middleware
+            payload = jwt.decode(
+                token, 
+                settings.jwt_secret, 
+                algorithms=["HS256"]
+            )
+            
+            # Attach user info to request state
+            request.state.user = {
+                "user_id": payload.get("userId"),
+                "email": payload.get("email"),
+                "role": payload.get("role")
+            }
+        except Exception:
+            # Token invalid, but we'll let the endpoint handlers deal with it
+            pass
+    
+    return await call_next(request)
+
 
 # Request logging middleware
 @app.middleware("http")
@@ -169,20 +208,23 @@ async def root():
 
 
 # Import routers
-from routers.predictions import router as predictions_router
 from routers.analysis import router as analysis_router
 from routers.training import router as training_router
 from routers.stats import router as stats_router
 
-# Include routers
-app.include_router(predictions_router, prefix="/predict")
-app.include_router(analysis_router)
-app.include_router(training_router)
-app.include_router(stats_router)
+# Include routers with versioning
+app.include_router(analysis_router, prefix="/api/v1/analyze")
+app.include_router(training_router, prefix="/api/v1/train")
+app.include_router(stats_router, prefix="/api/v1/stats")
+
+# Legacy routes for backward compatibility
+app.include_router(analysis_router, prefix="/analyze")
+app.include_router(training_router, prefix="/train")
+app.include_router(stats_router, prefix="/stats")
 
 
 # Additional endpoints for completeness
-@app.get("/stats/system", tags=["stats"])
+@app.get("/api/v1/stats/system", tags=["stats"])
 async def get_system_stats():
     """Get comprehensive system statistics"""
     try:
@@ -192,7 +234,7 @@ async def get_system_stats():
         raise HTTPException(status_code=500, detail="Failed to get system stats")
 
 
-@app.get("/stats/kpis", tags=["stats"])
+@app.get("/api/v1/stats/kpis", tags=["stats"])
 async def get_kpis():
     """Get key performance indicators"""
     try:
@@ -200,6 +242,19 @@ async def get_kpis():
     except Exception as e:
         logger.error(f"Error getting KPIs: {e}")
         raise HTTPException(status_code=500, detail="Failed to get KPIs")
+
+
+# Legacy endpoints for backward compatibility
+@app.get("/stats/system", tags=["stats"])
+async def get_system_stats_legacy():
+    """Get comprehensive system statistics (legacy)"""
+    return await get_system_stats()
+
+
+@app.get("/stats/kpis", tags=["stats"])
+async def get_kpis_legacy():
+    """Get key performance indicators (legacy)"""
+    return await get_kpis()
 
 
 @app.get("/predict/delay", tags=["predictions"])

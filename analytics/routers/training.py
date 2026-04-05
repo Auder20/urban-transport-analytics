@@ -8,6 +8,7 @@ from services.delay_predictor import delay_predictor
 from services.anomaly_detector import anomaly_detector
 from services.stats_service import stats_service
 from utils.db import get_db
+from utils.auth import require_admin, require_operator_or_admin
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from datetime import datetime
@@ -20,7 +21,8 @@ router = APIRouter(prefix="/train", tags=["training"])
 async def train_delay_model(
     request: ModelTrainingRequest = None,
     background_tasks: BackgroundTasks = BackgroundTasks(),
-    session: AsyncSession = Depends(get_db)
+    session: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_admin)
 ):
     """
     Train or retrain the delay prediction model
@@ -83,7 +85,8 @@ async def train_delay_model(
 async def train_anomaly_model(
     min_samples: int = 500,
     background_tasks: BackgroundTasks = BackgroundTasks(),
-    session: AsyncSession = Depends(get_db)
+    session: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_admin)
 ):
     """
     Train or retrain the anomaly detection model
@@ -132,7 +135,9 @@ async def train_anomaly_model(
 
 
 @router.get("/status")
-async def get_training_status():
+async def get_training_status(
+    current_user: dict = Depends(require_operator_or_admin)
+):
     """
     Get current training status and model information
     """
@@ -164,7 +169,8 @@ async def get_training_status():
 
 @router.get("/data-quality")
 async def get_data_quality_report(
-    session: AsyncSession = Depends(get_db)
+    session: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_operator_or_admin)
 ):
     """
     Get data quality report for training data

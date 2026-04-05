@@ -10,6 +10,7 @@ const swaggerJsdoc = require('swagger-jsdoc');
 const { connectMongo } = require('./config/mongodb');
 const { generalLimiter } = require('./middleware/rateLimit.middleware');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
+const { requirePasswordChange } = require('./middleware/passwordChange.middleware');
 const gpsService = require('./services/gps.service');
 
 // Import routes
@@ -160,7 +161,21 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customSiteTitle: 'UTA API Documentation'
 }));
 
-// API Routes
+// Password change requirement middleware (after auth, before protected routes)
+app.use(requirePasswordChange);
+
+// API Routes with versioning
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/buses', busesRoutes);
+app.use('/api/v1/routes', routesRoutes);
+app.use('/api/v1/stations', stationsRoutes);
+app.use('/api/v1/trips', tripsRoutes);
+app.use('/api/v1/analytics', analyticsRoutes);
+app.use('/api/v1/search', searchRoutes);
+app.use('/api/v1/schedules', schedulesRoutes);
+app.use('/api/v1/notifications', notificationsRoutes);
+
+// Legacy API routes (for backward compatibility)
 app.use('/api/auth', authRoutes);
 app.use('/api/buses', busesRoutes);
 app.use('/api/routes', routesRoutes);

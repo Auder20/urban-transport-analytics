@@ -1,6 +1,7 @@
 require('dotenv').config();
 const { app, server, io } = require('./app');
 const pool = require('./config/database');
+const MigrationTracker = require('./db/migrate');
 
 const PORT = process.env.PORT || 3001;
 
@@ -40,18 +41,9 @@ const startServer = async () => {
     await pool.query('SELECT NOW()');
     console.log('✅ PostgreSQL connected successfully');
 
-    // Run pending migrations
-    const fs = require('fs')
-    const path = require('path')
-    const migrationsDir = path.join(__dirname, 'db/migrations')
-    const migrationFiles = fs.readdirSync(migrationsDir)
-      .filter(file => file.endsWith('.sql'))
-      .sort()
-    for (const file of migrationFiles) {
-      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8')
-      await pool.query(sql)
-    }
-    console.log('✅ Migrations applied')
+    // Run migrations with tracking
+    const migrationTracker = new MigrationTracker(pool);
+    await migrationTracker.runMigrations();
 
     await runSeedIfNeeded();
 

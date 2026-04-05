@@ -96,7 +96,7 @@ curl http://localhost/
 # Test authentication
 curl -X POST http://localhost/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@uta.com","password":"admin123"}'
+  -d "{\"email\":\"admin@uta.com\",\"password\":\"$ADMIN_PASSWORD\"}"
 
 # Test routes endpoint
 curl http://localhost/api/routes
@@ -154,9 +154,11 @@ All services should show as `healthy` or `running`:
 ## 🐛 Known Issues & Fixes
 
 ### Issue: JWT_SECRET Warning
-**Fix**: Set JWT_SECRET in .env file
+**Fix**: Set JWT_SECRET in .env file with secure 32-character string
 ```bash
 echo "JWT_SECRET=cambia-esto-por-un-secreto-seguro-de-32-caracteres" >> .env
+# In production, use a real secure secret
+echo "JWT_SECRET=$(openssl rand -base64 32)" >> .env
 ```
 
 ### Issue: Missing Dependencies

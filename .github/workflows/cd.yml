@@ -1,7 +1,8 @@
-name: CD Pipeline
+name: Continuous Deployment
 
 on:
   push:
+    branches: [main]
     tags:
       - 'v*'
   workflow_dispatch:
@@ -16,73 +17,62 @@ on:
           - production
 
 jobs:
-  build-and-deploy:
+  test-and-build:
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment || 'staging' }}
-
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Run comprehensive tests
+        run: |
+          echo "🧪 Running comprehensive test suite..."
+          npm run test:backend
+          npm run test:analytics
+          npm run test:frontend
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to Docker Hub
+      - name: Log in to Container Registry
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: urban-transport-analytics
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=tag
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=sha
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push backend image
+      - name: Build and push Docker image
+        id: build
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
+          context: .
+          file: ./docker-compose.prod.yml
           push: true
-          tags: urban-transport-analytics/backend:${{ steps.meta.outputs.version }}
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-
-      - name: Build and push analytics image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./analytics
-          push: true
-          tags: urban-transport-analytics/analytics:${{ steps.meta.outputs.version }}
-          labels: ${{ steps.meta.outputs.labels }}
-
-      - name: Build and push frontend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          push: true
-          tags: urban-transport-analytics/frontend:${{ steps.meta.outputs.version }}
-          labels: ${{ steps.meta.outputs.labels }}
-
-      - name: Build and push nginx image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./nginx
-          push: true
-          tags: urban-transport-analytics/nginx:${{ steps.meta.outputs.version }}
-          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   deploy-staging:
     runs-on: ubuntu-latest
-    needs: build-and-deploy
-    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'staging'
+    needs: test-and-build
+    if: github.event_name == 'pull_request' || github.event.inputs.environment == 'staging'
     environment: staging
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -91,30 +81,35 @@ jobs:
         run: |
           echo "🚀 Deploying to staging environment..."
           
-          # Update docker-compose with new image tags
-          sed -i "s/urban-transport-analytics\/backend:.*/urban-transport-analytics\/backend:${{ github.sha }}/" docker-compose.yml
-          sed -i "s/urban-transport-analytics\/analytics:.*/urban-transport-analytics\/analytics:${{ github.sha }}/" docker-compose.yml
-          sed -i "s/urban-transport-analytics\/frontend:.*/urban-transport-analytics\/frontend:${{ github.sha }}/" docker-compose.yml
-          sed -i "s/urban-transport-analytics\/nginx:.*/urban-transport-analytics\/nginx:${{ github.sha }}/" docker-compose.yml
-
-          # Deploy to staging server (example)
-          # scp docker-compose.yml user@staging-server:/app/
-          # ssh user@staging-server "cd /app && docker-compose pull && docker-compose up -d"
-
+          # Deploy to staging server with health checks
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.STAGING_DEPLOY_TOKEN }}" \
+            -H "Content-type: application/json" \
+            -d '{
+              "image_tag": "${{ needs.test-and-build.outputs.image-tag }}",
+              "environment": "staging",
+              "commit_sha": "${{ github.sha }}"
+            }' \
+            ${{ secrets.STAGING_DEPLOY_API_URL }}
+          
+          # Wait for deployment completion
+          echo "⏳ Waiting for staging deployment..."
+          timeout 300 bash -c 'until curl -f ${{ secrets.STAGING_URL }}/api/health; do sleep 10; done'
+          
+          # Run smoke tests
+          echo "🧪 Running smoke tests..."
+          curl -f ${{ secrets.STAGING_URL }}/api/health || exit 1
+          curl -f ${{ secrets.STAGING_URL }}/analytics/health || exit 1
+          curl -f ${{ secrets.STAGING_URL }}/ || exit 1
+          
           echo "✅ Staging deployment completed!"
-
-      - name: Run smoke tests
-        run: |
-          echo "🧪 Running smoke tests on staging..."
-          # Add your smoke test commands here
-          echo "✅ All smoke tests passed!"
 
   deploy-production:
     runs-on: ubuntu-latest
-    needs: build-and-deploy
-    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.environment == 'production'
+    needs: test-and-build
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'production'
     environment: production
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -123,95 +118,104 @@ jobs:
         run: |
           echo "🚀 Deploying to production environment..."
           
-          # Get version from tag
-          VERSION=${GITHUB_REF#refs/tags/}
-          if [ -z "$VERSION" ]; then
-            VERSION=${{ github.sha }}
+          # Create deployment notification
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H "Content-type: application/json" \
+            -d '{
+              "text": "🚀 Starting production deployment...",
+              "channel": "deployments"
+            }' \
+            ${{ secrets.SLACK_WEBHOOK_URL }}
+          
+          # Deploy with zero-downtime
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.PROD_DEPLOY_TOKEN }}" \
+            -H "Content-type: application/json" \
+            -d '{
+              "image_tag": "${{ needs.test-and-build.outputs.image-tag }}",
+              "environment": "production",
+              "commit_sha": "${{ github.sha }}",
+              "strategy": "blue_green"
+            }' \
+            ${{ secrets.PROD_DEPLOY_API_URL }}
+          
+          # Wait for deployment completion
+          echo "⏳ Waiting for production deployment..."
+          timeout 600 bash -c 'until curl -f ${{ secrets.PROD_API_URL }}/api/health; do sleep 15; done'
+          
+          # Run comprehensive health checks
+          echo "🏥 Running comprehensive health checks..."
+          if curl -f ${{ secrets.PROD_API_URL }}/api/health && \
+             curl -f ${{ secrets.PROD_ANALYTICS_URL }}/health && \
+             curl -f ${{ secrets.PROD_FRONTEND_URL }}/; then
+            echo "✅ Production deployment successful!"
+            
+            # Send success notification
+            curl -X POST \
+              -H "Authorization: Bearer ${{ secrets.SLACK_WEBHOOK_URL }}" \
+              -H "Content-type: application/json" \
+              -d '{
+                "text": "✅ Production deployment completed successfully!",
+                "channel": "deployments"
+              }' \
+              ${{ secrets.SLACK_WEBHOOK_URL }}
+          else
+            echo "❌ Production deployment verification failed!"
+            
+            # Send failure notification and trigger rollback
+            curl -X POST \
+              -H "Authorization: Bearer ${{ secrets.SLACK_WEBHOOK_URL }}" \
+              -H "Content-type: application/json" \
+              -d '{
+                "text": "❌ Production deployment failed - initiating rollback...",
+                "channel": "deployments"
+              }' \
+              ${{ secrets.SLACK_WEBHOOK_URL }}
+            
+            # Trigger rollback
+            curl -X POST \
+              -H "Authorization: Bearer ${{ secrets.PROD_DEPLOY_TOKEN }}" \
+              -H "Content-type: application/json" \
+              -d '{
+                "action": "rollback",
+                "environment": "production"
+              }' \
+              ${{ secrets.PROD_DEPLOY_API_URL }}
+            
+            exit 1
           fi
-          
-          echo "Deploying version: $VERSION"
-
-          # Update docker-compose with new image tags
-          sed -i "s/urban-transport-analytics\/backend:.*/urban-transport-analytics\/backend:$VERSION/" docker-compose.yml
-          sed -i "s/urban-transport-analytics\/analytics:.*/urban-transport-analytics\/analytics:$VERSION/" docker-compose.yml
-          sed -i "s/urban-transport-analytics\/frontend:.*/urban-transport-analytics\/frontend:$VERSION/" docker-compose.yml
-          sed -i "s/urban-transport-analytics\/nginx:.*/urban-transport-analytics\/nginx:$VERSION/" docker-compose.yml
-
-          # Deploy to production server (example)
-          # scp docker-compose.yml user@prod-server:/app/
-          # ssh user@prod-server "cd /app && docker-compose pull && docker-compose up -d"
-
-          echo "✅ Production deployment completed!"
-
-      - name: Run health checks
-        run: |
-          echo "🏥 Running health checks on production..."
-          
-          # Wait for services to be ready
-          sleep 30
-          
-          # Check backend health
-          # curl -f https://api.uta.com/health || exit 1
-          
-          # Check analytics health
-          # curl -f https://analytics.uta.com/health || exit 1
-          
-          # Check frontend
-          # curl -f https://uta.com/ || exit 1
-          
-          echo "✅ All health checks passed!"
-
-      - name: Create deployment summary
-        run: |
-          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Environment: Production" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Timestamp**: $(date -u)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Services" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Backend API" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Analytics Service" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Frontend" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Nginx" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Links" >> $GITHUB_STEP_SUMMARY
-          echo "- [Application](https://uta.com)" >> $GITHUB_STEP_SUMMARY
-          echo "- [API Docs](https://api.uta.com/api/docs)" >> $GITHUB_STEP_SUMMARY
 
   rollback:
     runs-on: ubuntu-latest
-    needs: deploy-production
-    if: failure() && startsWith(github.ref, 'refs/tags/v')
+    if: failure() && needs.deploy-production
     environment: production
-
+    
     steps:
-      - name: Rollback production
-        if: failure()
+      - name: Automatic rollback
         run: |
-          echo "🔄 Rolling back production deployment..."
+          echo "🔄 Automatic rollback triggered due to deployment failure..."
           
-          # Get previous version (simplified - in real scenario, you'd have better version management)
-          PREVIOUS_VERSION=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "latest")
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.PROD_DEPLOY_TOKEN }}" \
+            -H "Content-type: application/json" \
+            -d '{
+              "action": "rollback",
+              "environment": "production",
+              "reason": "deployment_verification_failed"
+            }' \
+            ${{ secrets.PROD_DEPLOY_API_URL }}
           
-          echo "Rolling back to version: $PREVIOUS_VERSION"
-          
-          # Update docker-compose with previous image tags
-          sed -i "s/urban-transport-analytics\/backend:.*/urban-transport-analytics\/backend:$PREVIOUS_VERSION/" docker-compose.yml
-          sed -i "s/urban-transport-analytics\/analytics:.*/urban-transport-analytics\/analytics:$PREVIOUS_VERSION/" docker-compose.yml
-          sed -i "s/urban-transport-analytics\/frontend:.*/urban-transport-analytics\/frontend:$PREVIOUS_VERSION/" docker-compose.yml
-          sed -i "s/urban-transport-analytics\/nginx:.*/urban-transport-analytics\/nginx:$PREVIOUS_VERSION/" docker-compose.yml
+          echo "🔄 Rollback initiated!"
 
-          # Deploy rollback (example)
-          # scp docker-compose.yml user@prod-server:/app/
-          # ssh user@prod-server "cd /app && docker-compose pull && docker-compose up -d"
-
-          echo "✅ Rollback completed!"
-
-      - name: Notify team
-        if: failure()
+  cleanup:
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    
+    steps:
+      - name: Cleanup old Docker images
         run: |
-          echo "🚨 Production deployment failed and rollback was triggered!"
-          echo "Please check the logs and investigate the issue."
-          # Add Slack/Email notification here
+          echo "🧹 Cleaning up old Docker images..."
+          docker system prune -f
+          docker volume prune -f

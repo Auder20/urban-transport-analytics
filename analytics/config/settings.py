@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: list = []
     
+    # Authentication
+    jwt_secret: Optional[str] = None
+    backend_url: str = "http://backend:3001"
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

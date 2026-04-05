@@ -8,7 +8,12 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext js,jsx --fix",
-    "test": "vitest"
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage",
+    "test:ui": "vitest --ui",
+    "test:e2e": "playwright test",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",

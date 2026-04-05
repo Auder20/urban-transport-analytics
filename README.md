@@ -114,7 +114,14 @@ A comprehensive full-stack platform for real-time urban public transport analyti
 
 ### 🔑 Default Login Credentials
 - **Email**: admin@uta.com
-- **Password**: admin123
+- **Password**: Configure en `.env` como `ADMIN_PASSWORD`
+
+> **⚠️ IMPORTANTE**: En producción, siempre configure contraseñas seguras en las variables de entorno:
+> ```bash
+> ADMIN_PASSWORD=tu-contraseña-segura-aqui
+> OPERATOR_PASSWORD=tu-contraseña-segura-aqui  
+> VIEWER_PASSWORD=tu-contraseña-segura-aqui
+> ```
 
 ## 🛠️ Development Setup
 
@@ -205,19 +212,25 @@ npm run dev
 #### Backend (.env)
 ```env
 JWT_SECRET=your-jwt-secret-here
-DATABASE_URL=postgresql://uta:secret@postgres:5432/uta_db
+DATABASE_URL=postgresql://uta:your-secure-password@postgres:5432/uta_db
 MONGODB_URI=mongodb://mongo:27017/uta_logs
 REDIS_URL=redis://redis:6379
 ANALYTICS_URL=http://analytics:8000
+
+# User Credentials
+ADMIN_PASSWORD=your-secure-admin-password
+OPERATOR_PASSWORD=your-secure-operator-password
+VIEWER_PASSWORD=your-secure-viewer-password
 NODE_ENV=development
 ```
 
 #### Analytics (.env)
 ```env
-DATABASE_URL=postgresql://uta:secret@postgres:5432/uta_db
+DATABASE_URL=postgresql://uta:your-secure-password@postgres:5432/uta_db
 REDIS_URL=redis://redis:6379
 MODEL_RETRAIN_SCHEDULE=0 2 * * *
 MIN_SAMPLES_FOR_TRAINING=500
+JWT_SECRET=your-jwt-secret-here
 ```
 
 #### Frontend (.env)

@@ -47,7 +47,7 @@ describe('Authentication API', () => {
         .post('/api/auth/login')
         .send({
           email: 'admin@uta.com',
-          password: 'admin123'
+          password: process.env.ADMIN_PASSWORD || 'test-password'
         })
         .expect(200);
 

@@ -7,7 +7,14 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "jest",
-    "lint": "eslint src/"
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:integration": "jest --testPathPattern=integration",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "migrate": "node src/db/migrate.js",
+    "seed": "node scripts/seed-db.js",
+    "build": "echo 'No build step required for Node.js'"
   },
   "dependencies": {
     "axios": "^1.6.5",

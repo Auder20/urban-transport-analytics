@@ -17,7 +17,7 @@ services:
   backend:
     build: ./backend
     environment:
-      - DATABASE_URL=postgresql://uta:secret@postgres:5432/uta_db
+      - DATABASE_URL=postgresql://uta:${POSTGRES_PASSWORD}@postgres:5432/uta_db
       - MONGODB_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/uta_logs?authSource=admin
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
       - ANALYTICS_URL=http://analytics:8000
@@ -43,7 +43,7 @@ services:
   analytics:
     build: ./analytics
     environment:
-      - DATABASE_URL=postgresql://uta:secret@postgres:5432/uta_db
+      - DATABASE_URL=postgresql://uta:${POSTGRES_PASSWORD}@postgres:5432/uta_db
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
       - CORS_ORIGINS=["http://localhost:3000","http://localhost:5173"]
     depends_on:
@@ -68,7 +68,7 @@ services:
         node scripts/seed-db.js
       "
     environment:
-      - DATABASE_URL=postgresql://uta:secret@postgres:5432/uta_db
+      - DATABASE_URL=postgresql://uta:${POSTGRES_PASSWORD}@postgres:5432/uta_db
       - MONGODB_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/uta_logs?authSource=admin
     depends_on:
       postgres:
@@ -83,7 +83,7 @@ services:
     image: postgis/postgis:16-3.4
     environment:
       POSTGRES_USER: uta
-      POSTGRES_PASSWORD: secret
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: uta_db
     volumes:
       - postgres_data:/var/lib/postgresql/data

@@ -35,7 +35,8 @@ class AuthController {
       const { email, password } = loginSchema.parse(req.body);
 
       const query = `
-        SELECT id, email, password_hash, full_name, role, is_active, last_login, created_at
+        SELECT id, email, password_hash, full_name, role, is_active, last_login, created_at, 
+               password_changed_at, is_default_password
         FROM users 
         WHERE email = $1 AND is_active = true
       `;
@@ -65,7 +66,8 @@ class AuthController {
           userId, 
           email: user.email, 
           role: user.role,
-          fullName: user.full_name 
+          fullName: user.full_name,
+          requiresPasswordChange: user.is_default_password || false
         },
         process.env.JWT_SECRET,
         { expiresIn: '15m' }
@@ -113,7 +115,8 @@ class AuthController {
           email: user.email,
           fullName: user.full_name,
           role: user.role,
-          lastLogin: user.last_login
+          lastLogin: user.last_login,
+          requiresPasswordChange: user.is_default_password || false
         }
       });
     } catch (error) {
@@ -450,9 +453,9 @@ class AuthController {
       // Hash new password
       const newPasswordHash = await bcrypt.hash(newPassword, 10);
 
-      // Update password
+      // Update password and clear default password flag
       await pool.query(
-        'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+        'UPDATE users SET password_hash = $1, password_changed_at = NOW(), is_default_password = FALSE WHERE id = $2',
         [newPasswordHash, userId]
       );
 
