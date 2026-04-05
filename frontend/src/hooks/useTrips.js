@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { tripsService } from '@/services/tripsService'
 
 export function useAllTrips(page = 1, limit = 20, filters = {}, options = {}) {
@@ -16,5 +16,13 @@ export function useTripsByRoute(routeId, params = {}) {
     queryFn: () => tripsService.getByRoute(routeId, params),
     staleTime: 2 * 60 * 1000,
     enabled: !!routeId,
+  })
+}
+
+export function useDeleteTrip() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: tripsService.delete,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['trips'] }),
   })
 }

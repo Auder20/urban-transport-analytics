@@ -13,4 +13,8 @@ export const tripsService = {
     const response = await api.get(`/trips/route/${routeId}`, { params })
     return response.data
   },
+  delete: async (id) => {
+    const response = await api.delete(`/trips/${id}`)
+    return response.data
+  },
 }

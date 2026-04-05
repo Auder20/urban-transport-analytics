@@ -21,4 +21,8 @@ export const stationsService = {
     const response = await api.put(`/stations/${id}`, data)
     return response.data
   },
+  delete: async (id) => {
+    const response = await api.delete(`/stations/${id}`)
+    return response.data
+  },
 }

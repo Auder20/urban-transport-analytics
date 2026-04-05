@@ -35,3 +35,19 @@ export function useCreateStation() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['stations'] }),
   })
 }
+
+export function useDeleteStation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: stationsService.delete,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['stations'] }),
+  })
+}
+
+export function useUpdateStation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: stationsService.update,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['stations'] }),
+  })
+}
